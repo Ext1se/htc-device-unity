@@ -1,0 +1,2 @@
+-keep class de.greenrobot.event.EventBus** { *;}
+-keep class de.greenrobot.event** { *;}
