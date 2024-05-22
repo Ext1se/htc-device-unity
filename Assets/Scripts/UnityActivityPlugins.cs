@@ -50,7 +50,7 @@ namespace UnityService
             //AndroidJavaObject currentActivity = _unityActivity.GetStatic<AndroidJavaObject>("currentActivity");
             //AndroidJavaObject currentActivity = _unityActivity.GetStatic<AndroidJavaObject>("UnityPlayer.currentActivity");
             //AndroidJavaObject currentActivity = _unityActivity.Get<AndroidJavaObject>("currentActivity");
-            AndroidJavaObject currentActivity = _unityActivity.GetStatic<AndroidJavaObject>("currentActivity1");
+            AndroidJavaObject currentActivity = _unityActivity.GetStatic<AndroidJavaObject>("currentUnityActivity");
             Debugger.Log("CurrentActivity =" + currentActivity);
 
             _intent = currentActivity.Call<AndroidJavaObject>("getIntent");
