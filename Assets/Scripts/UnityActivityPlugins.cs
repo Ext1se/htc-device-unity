@@ -26,28 +26,28 @@ namespace UnityService
             InitAndroidPlugin("com.ext1se.unity_activity.PluginActivity");
         }
 
-        private void Update()
-        {
-            if (_unityActivity == null || _intent == null)
-            {
-                _fromIntentText.text = $"intent = null";
-                return;
-            }
+        //private void Update()
+        //{
+        //    if (_unityActivity == null || _intent == null)
+        //    {
+        //        _fromIntentText.text = $"intent = null";
+        //        return;
+        //    }
 
-            byte[] data = _intent.Call<byte[]>("getByteArrayExtra", new object[] { "usb_raw_data" });
-            long time = _intent.Call<long>("getLongExtra", new object[] { "usb_data_time", (long)-1 });
-            if (time != _currentTime && data != null)
-            {
-                _currentData = data;
-                _currentTime = time;
+        //    byte[] data = _intent.Call<byte[]>("getByteArrayExtra", new object[] { "usb_raw_data" });
+        //    long time = _intent.Call<long>("getLongExtra", new object[] { "usb_data_time", (long)-1 });
+        //    if (time != _currentTime && data != null && data.Length > 0)
+        //    {
+        //        _currentData = data;
+        //        _currentTime = time;
 
-                _fromIntentText.text = $"{DateTime.Now}: {data.Length}; {data} ";
-            }
-            else
-            {
-                //_fromIntentText.text = $"Wait. Time : {time}; Data: {data}";
-            }
-        }
+        //        _fromIntentText.text = $"{DateTime.Now}: {data.Length};\n{BitConverter.ToString(data)} ";
+        //    }
+        //    else
+        //    {
+        //        //_fromIntentText.text = $"Wait. Time : {time}; Data: {data}";
+        //    }
+        //}
 
         #endregion
 
@@ -56,11 +56,14 @@ namespace UnityService
         private void InitAndroidPlugin(string pluginName)
         {
             _unityActivity = new AndroidJavaObject(pluginName);
-            AndroidJavaObject currentActivity = _unityActivity.GetStatic<AndroidJavaObject>("currentUnityActivity");
-            _intent = currentActivity.Call<AndroidJavaObject>("getIntent");
             if (_unityActivity == null)
             {
                 Debugger.Log("Plugin Instance Error");
+            }
+            else
+            {
+                AndroidJavaObject currentActivity = _unityActivity.GetStatic<AndroidJavaObject>("currentUnityActivity");
+                _intent = currentActivity.Call<AndroidJavaObject>("getIntent");
             }
         }
 
@@ -160,12 +163,11 @@ namespace UnityService
 
         public void GetDataFromNative(string data)
         {
-            if (_fromAndroidText == null)
-            {
-                return;
-            }
-
-            _fromAndroidText.text = $"{DateTime.Now}: {data.Length}: {data}";
+            if (_fromAndroidText == null) return;
+            var bytes = System.Convert.FromBase64String(data);
+            if (bytes.Length > 0 && bytes[0] == 0 && bytes[1] == 0) return;
+            _fromAndroidText.text = $"[{DateTime.Now}] length:{bytes.Length}\n" +
+                $"{BitConverter.ToString(bytes)}";
         }
 
         #endregion
