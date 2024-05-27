@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -104,12 +105,24 @@ namespace UnityService
             }
         }
 
+        //TODO: check data
         public void SendDataToHTCDevice()
         {
             if (_unityActivity != null)
             {
                 string message = _inputField.text;
-                _unityActivity.Call("sendDataToDevice", message);
+                //_unityActivity.Call("sendStringDataToDevice", message);
+                _unityActivity.Call("sendDataToDevice", Encoding.ASCII.GetBytes(message));
+            }
+        }
+        
+        public void SendByteDataToHTCDevice()
+        {
+            if (_unityActivity != null)
+            {
+                //TODO: add bytes
+                byte[] bytes = new byte[]{};
+                _unityActivity.Call("sendDataToDevice", bytes);
             }
         }
 
