@@ -3,9 +3,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading;
 using TMPro;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Android;
 
 namespace UnityService
 {
@@ -16,17 +18,19 @@ namespace UnityService
         [SerializeField] private TextMeshProUGUI _fromIntentText;
         [SerializeField] private TMP_InputField _inputField;
 
+        private AndroidJavaClass _unityClass;
         private AndroidJavaObject _unityActivity;
-        private AndroidJavaObject _intent;
+        private AndroidJavaObject _pluginInstance;
 
         private byte[] _currentData;
         private long _currentTime;
+
 
         #region MonoBehaviour
 
         private void Start()
         {
-            InitAndroidPlugin("com.ext1se.unity_activity.PluginActivity");
+            InitAndroidPlugin("com.ext1se.unity_activity.DonglePluginActivity");
         }
 
         //private void Update()
@@ -58,15 +62,46 @@ namespace UnityService
 
         private void InitAndroidPlugin(string pluginName)
         {
-            _unityActivity = new AndroidJavaObject(pluginName);
-            if (_unityActivity == null)
+            var _unityClass = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
+            _unityActivity = _unityClass.GetStatic<AndroidJavaObject>("currentActivity");
+            _pluginInstance = new AndroidJavaObject(pluginName);
+            if (_pluginInstance == null)
             {
                 Debugger.Log("Plugin Instance Error");
             }
-            else
+
+            _pluginInstance.Call("Init", _unityActivity);
+        }
+
+        private void Update()
+        {
+            if(_pluginInstance != null)
             {
-                AndroidJavaObject currentActivity = _unityActivity.GetStatic<AndroidJavaObject>("currentUnityActivity");
-                _intent = currentActivity.Call<AndroidJavaObject>("getIntent");
+                var sdata = _pluginInstance.Call<sbyte[]>("Read");
+                if(sdata != null && sdata.Length > 0)
+                {
+                    byte[] data = new byte[sdata.Length];
+                    Buffer.BlockCopy(sdata, 0, data, 0, data.Length);
+                    _fromAndroidText.text = System.BitConverter.ToString(data);
+                }
+            }
+        }
+
+        private void OnApplicationQuit()
+        {
+            if (_pluginInstance != null)
+            {
+                _pluginInstance.Call("Close");
+                _pluginInstance = null;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (_pluginInstance != null)
+            {
+                _pluginInstance.Call("Close");
+                _pluginInstance = null;
             }
         }
 
@@ -74,57 +109,11 @@ namespace UnityService
 
 
         #region Calls To Native Android
-
-        public void InitAndroidServices()
-        {
-            if (_unityActivity != null)
-            {
-                _unityActivity.Call("initAndroidServices", "message");
-            }
-        }
-
-        public void PrepareDevices()
-        {
-            if (_unityActivity != null)
-            {
-                _unityActivity.Call("prepareDeviceList");
-            }
-        }
-
-        public void ShowDevices()
-        {
-            if (_unityActivity != null)
-            {
-                _unityActivity.Call("showListOfDevices");
-            }
-        }
-
-        public void SelectHTCDevice()
-        {
-            if (_unityActivity != null)
-            {
-                _unityActivity.Call("selectHtcDevice");
-            }
-        }
-
-        //TODO: check data
-        public void SendDataToHTCDevice()
-        {
-            if (_unityActivity != null)
-            {
-                string message = _inputField.text;
-                //_unityActivity.Call("sendStringDataToDevice", message);
-                _unityActivity.Call("sendDataToDevice", Encoding.ASCII.GetBytes(message));
-            }
-        }
         
         public void SendByteDataToHTCDevice()
         {
             if (_unityActivity != null)
             {
-                //TODO: add bytes
-                //byte[] bytes = new byte[]{};
-                //_unityActivity.Call("sendDataToDevice", bytes);
                 ApplicationStarted();
                 OpenChannelForScan();
             }
@@ -158,28 +147,22 @@ namespace UnityService
         byte[] send_cmd(byte cmd_id, byte data, bool showLog, bool waitAnswer = false) => send_cmd(cmd_id, new byte[] { data }, showLog, waitAnswer);
         byte[] send_cmd(byte cmd_id, byte[] data, bool showLog, bool waitAnswer = false)
         {
-            //if (OnlyListenerMode)
-            //{
-            //    Log.WarningLine("Send command is blocked");
-            //    return new byte[0];
-            //}
             if (data == null)
                 data = new byte[0];
             int BUFFER_SIZE = 0x41;
             List<byte> output = new List<byte>(BUFFER_SIZE); // 65 byte for command
-            output.AddRange(HID_ViveTest.PythonLike.StructConverter.Pack("<BBB", (byte)0x0, cmd_id, (byte)(data.Length + 1)));
+            output.AddRange(StructConverter.Pack("<BBB", (byte)0x0, cmd_id, (byte)(data.Length + 1)));
             output.AddRange(data);
             output.AddRange(new byte[Math.Max(0, BUFFER_SIZE - output.Count)]); // заполняем остальнное нулями до размера 65
             byte[] result = new byte[0];
             try
             {
-                _unityActivity.Call("sendDataToDevice", output.ToArray());//stream.SetFeature(output.ToArray());
+                _unityActivity.Call("Write", output.ToArray());//stream.SetFeature(output.ToArray());
                 if (!waitAnswer)
                 {
                     if (showLog)
                     {
                         var str = Encoding.UTF8.GetString(result);
-                        //Log.WarningLine($"[SEND ANSWER] <cmd:0x{cmd_id:X}, data:{data.ArrayToString(true)}> {BitConverter.ToString(result)} ... ({str})");
                         Debug.LogWarning($"[SEND ANSWER] <cmd:0x{cmd_id:X}, data:{data.ArrayToString(true)}> {BitConverter.ToString(result)} ... ({str})");
                     }
                     return result;
@@ -214,50 +197,6 @@ namespace UnityService
             }
             return result;
         }
-
-        public void Add()
-        {
-            if (_unityActivity != null)
-            {
-                int result = _unityActivity.Call<int>("add", 5, 6);
-                Debugger.Log($"Add result from Native Android: {result}");
-            }
-        }
-
-        //TODO: check enum
-        /// <summary>
-        /// typeFormat:
-        /// 0 - binary
-        /// 1 - int
-        /// 2 - hex
-        /// 3 - string 
-        /// </summary>
-        /// <param name="typeFormat"></param>
-        public void SetReceiveFormat(int typeFormat)
-        {
-            if (_unityActivity != null)
-            {
-                _unityActivity.Call("setReceiveFormat", typeFormat);
-            }
-        }
-
-        public void ShowMessage()
-        {
-            if (_unityActivity != null)
-            {
-                _unityActivity.Call("showMessage", "Hi from Unity!");
-            }
-        }
-
-
-        public void ShowMessageWithTag()
-        {
-            if (_unityActivity != null)
-            {
-                _unityActivity.Call("showMessageWithTag", "Hi from Unity!");
-            }
-        }
-
         #endregion
 
 

@@ -8,9 +8,12 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/Scenes/Demo_Plugin.unity
     guid: 9fc0d4010bbf28b4594072e72b8655ab
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Demo_Activity.unity
     guid: d9df6c2aaec052d47807d1dd88bf3fe8
+  - enabled: 1
+    path: Assets/Scenes/Phone_Demo_Activity.unity
+    guid: 0a564e95035707640b83d0be9240b02d
   m_configObjects:
     Unity.XR.Oculus.Settings: {fileID: 11400000, guid: 75f2332d857786544a01df2ac1d7a486, type: 2}
     com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 3f25127829d6ac044867028764649728, type: 2}

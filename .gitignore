@@ -74,3 +74,4 @@ crashlytics-build.properties
 # по просьбам
 .idea/
 Assets/Scenes/Stadium_v.2/LightingData.asset
+.vsconfig
