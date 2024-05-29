@@ -2,6 +2,7 @@ using HID_ViveTest.PythonLike;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using System.Threading;
 using TMPro;
@@ -143,6 +144,17 @@ namespace UnityService
             send_cmd(0x1e, null, true, false);
             send_cmd(0x1d, StructConverter.Pack($"<BB{MAX_TRACKER_COUNT}BB", 0x00, 0x01, flags, 0x00), true);
         }
+        public void CloseChannelForScan()
+        {
+            var indexes = new int[0];
+            byte[] flags = new byte[MAX_TRACKER_COUNT];
+            for (int i = 0; i < flags.Length; i++)
+                flags[i] = 0x1;
+            foreach (var item in indexes)
+                flags[item] = 0x00;
+            send_cmd(0x1e, null, true, false);
+            send_cmd(0x1d, StructConverter.Pack($"<BB{MAX_TRACKER_COUNT}BB", 0x02, 0x01, flags, 0x00), true);
+        }
 
         byte[] send_cmd(byte cmd_id, byte data, bool showLog, bool waitAnswer = false) => send_cmd(cmd_id, new byte[] { data }, showLog, waitAnswer);
         byte[] send_cmd(byte cmd_id, byte[] data, bool showLog, bool waitAnswer = false)
@@ -157,7 +169,9 @@ namespace UnityService
             byte[] result = new byte[0];
             try
             {
-                _unityActivity.Call("Write", output.ToArray());//stream.SetFeature(output.ToArray());
+                sbyte[] sbytes = new sbyte[output.Count];
+                Buffer.BlockCopy(output.ToArray(), 0, sbytes, 0, sbytes.Length);
+                _pluginInstance.Call("Write", sbytes);//stream.SetFeature(output.ToArray());
                 if (!waitAnswer)
                 {
                     if (showLog)
