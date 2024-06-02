@@ -1,4 +1,4 @@
-using HID_ViveTest.PythonLike;
+﻿using HID_ViveTest.PythonLike;
 using System.Linq;
 
 namespace VIVE_Trackers

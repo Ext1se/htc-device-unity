@@ -1,4 +1,4 @@
-using Newtonsoft.Json.Linq;
+﻿using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -60,7 +60,8 @@ namespace VIVE_Trackers
 
         public bool BumpMapOnce { get => bump_map_once; set => bump_map_once = value; }
         public long DeltaTime => AndroidDongleHID.TotalMilis - lastTimeUpdate;
-        public bool IsClickedBtn => (btns & 0x100) > 0 && (last_pose_btns & 0x100) == 0x0;
+        public bool IsBtnClicked => (btns & 0x100) > 0 && (last_pose_btns & 0x100) == 0x0;
+        public bool IsBtnDown => (btns & 0x100) > 0;
         public bool IsClient => IsInit && !IsHost;
         public bool IsHost { get; set; }
         public bool IsConnectedToHost { get; set; }

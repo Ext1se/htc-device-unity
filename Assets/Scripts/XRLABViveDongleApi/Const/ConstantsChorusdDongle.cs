@@ -1,4 +1,4 @@
-namespace VIVE_Trackers.Constants
+п»їnamespace VIVE_Trackers.Constants
 {
     public class ConstantsChorusdDongle
     {
@@ -185,7 +185,7 @@ namespace VIVE_Trackers.Constants
             READY_MODE = 0x02,
             UNPAIR_MODE = 0x06
         }
-        public static CommandPair[] DCMDS_THAT_RESTART => new CommandPair[] // возможно работает когда трекер привязан и синхронизирован
+        public static CommandPair[] DCMDS_THAT_RESTART => new CommandPair[] // РІРѕР·РјРѕР¶РЅРѕ СЂР°Р±РѕС‚Р°РµС‚ РєРѕРіРґР° С‚СЂРµРєРµСЂ РїСЂРёРІСЏР·Р°РЅ Рё СЃРёРЅС…СЂРѕРЅРёР·РёСЂРѕРІР°РЅ
         {
             new CommandPair(DCMD_RESET_DFU, null),//new byte[]{0, 2}), //try 2 or 3
             new CommandPair(DCMD_21, null),
@@ -213,7 +213,7 @@ namespace VIVE_Trackers.Constants
             //DRESP_TRACKER_NEW_RF_STATUS = 0x1D,
             DRESP_TRACKER_RF_STATUS = 0x1E,
             /// <summary>
-            /// события, когда трекеры присоеденены и карта построена
+            /// СЃРѕР±С‹С‚РёСЏ, РєРѕРіРґР° С‚СЂРµРєРµСЂС‹ РїСЂРёСЃРѕРµРґРµРЅРµРЅС‹ Рё РєР°СЂС‚Р° РїРѕСЃС‚СЂРѕРµРЅР°
             /// </summary>
             DRESP_TRACKER_INCOMING = 0x28,
         }

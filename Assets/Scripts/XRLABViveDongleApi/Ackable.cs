@@ -1,9 +1,9 @@
-namespace VIVE_Trackers
+﻿namespace VIVE_Trackers
 {
-    public delegate void TrackCallback(int trackerID, TrackData trackData, long time_delta);
+    public delegate void TrackCallback(int trackerIndx, TrackData trackData, long time_delta);
     public delegate void TrackerStatusCallback(TrackerDeviceInfo device);
-    public delegate void DataCallback(byte[] deviceAddr, byte[] data);
-    public delegate void DeviceCallback(int indx);
+    //public delegate void DataCallback(byte[] deviceAddr, byte[] data);
+    public delegate void DeviceCallback(int trackerIndx);
 
     public interface IAckable
     {
@@ -12,6 +12,7 @@ namespace VIVE_Trackers
         event DeviceCallback OnConnected;
         event DeviceCallback OnDisconnected;
         event DeviceCallback OnButtonClicked;
+        event DeviceCallback OnButtonDown;
 
         bool IsInit { get; }
 

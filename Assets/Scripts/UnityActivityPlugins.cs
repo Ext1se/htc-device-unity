@@ -1,10 +1,11 @@
-using HID_ViveTest.PythonLike;
+ï»¿using HID_ViveTest.PythonLike;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using TMPro;
 using UnityEngine;
 using VIVE_Trackers;
+using static OVRPlugin;
 
 namespace UnityService
 {
@@ -33,7 +34,13 @@ namespace UnityService
             trackers.OnConnected += Trackers_OnConnected;
             trackers.OnDisconnected += Trackers_OnDisconnected;
             trackers.OnTrack += Trackers_OnTrack;
+            trackers.OnButtonClicked += Trackers_OnButtonClicked;
             trackers.Init();
+        }
+
+        private void Trackers_OnButtonClicked(int trackerIndx)
+        {
+
         }
 
         private void Trackers_OnTrack(int trackerID, TrackData trackData, long time_delta)
@@ -202,7 +209,7 @@ namespace UnityService
         //    List<byte> output = new List<byte>(BUFFER_SIZE); // 65 byte for command
         //    output.AddRange(StructConverter.Pack("<BBB", (byte)0x0, cmd_id, (byte)(data.Length + 1)));
         //    output.AddRange(data);
-        //    output.AddRange(new byte[Math.Max(0, BUFFER_SIZE - output.Count)]); // çàïîëíÿåì îñòàëüííîå íóëÿìè äî ðàçìåðà 65
+        //    output.AddRange(new byte[Math.Max(0, BUFFER_SIZE - output.Count)]); // Ð·Ð°Ð¿Ð¾Ð»Ð½ÑÐµÐ¼ Ð¾ÑÑ‚Ð°Ð»ÑŒÐ½Ð½Ð¾Ðµ Ð½ÑƒÐ»ÑÐ¼Ð¸ Ð´Ð¾ Ñ€Ð°Ð·Ð¼ÐµÑ€Ð° 65
         //    byte[] result = new byte[0];
         //    try
         //    {

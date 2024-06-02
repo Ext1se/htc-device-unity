@@ -1,4 +1,4 @@
-#define SHOW_DUMP
+п»ї#define SHOW_DUMP
 
 using HID_ViveTest.PythonLike;
 using System;
@@ -23,8 +23,8 @@ namespace VIVE_Trackers
         public enum PairState : int // 32000008
         {
             ReadyForScan = 0x04000003,  // unpaired, pairing info present?,
-            PairedIdle = 0x03000005,  // приложение прекратило работу, но деваайс привязан
-            Paired_Locked = 0x0A000005,  // приложение работает, деваайс находится в режиме привязки
+            PairedIdle = 0x03000005,  // РїСЂРёР»РѕР¶РµРЅРёРµ РїСЂРµРєСЂР°С‚РёР»Рѕ СЂР°Р±РѕС‚Сѓ, РЅРѕ РґРµРІР°Р№СЃ РїСЂРёРІСЏР·Р°РЅ
+            PairedLocked = 0x0A000005,  // РїСЂРёР»РѕР¶РµРЅРёРµ СЂР°Р±РѕС‚Р°РµС‚, РґРµРІР°Р°Р№СЃ РЅР°С…РѕРґРёС‚СЃСЏ РІ СЂРµР¶РёРјРµ РїСЂРёРІСЏР·РєРё
             UnpairedNoInfo = 0x01000003,  // unpaired, pairing info not present?
             Paired0 = 0x320FC008, // paired
             Paired1 = 0x320FF808, // paired
@@ -57,6 +57,7 @@ namespace VIVE_Trackers
         public event DeviceCallback OnConnected;
         public event DeviceCallback OnDisconnected;
         public event DeviceCallback OnButtonClicked;
+        public event DeviceCallback OnButtonDown;
 
         public bool IsInit => _pluginInstance != null;
 
@@ -84,13 +85,13 @@ namespace VIVE_Trackers
 
             Log.WriteLine("Call 'startReader'");
             _pluginInstance.Call("startReader");
-            // загружаем ранее привязанные устройства
+            // Р·Р°РіСЂСѓР¶Р°РµРј СЂР°РЅРµРµ РїСЂРёРІСЏР·Р°РЅРЅС‹Рµ СѓСЃС‚СЂРѕР№СЃС‚РІР°
             InitTrackers(this);
         }
         void IAckable.DoLoop()
         {
             if (_pluginInstance == null) return;
-            
+
             if (!isStarted)
             {
                 ApplicationStarted();
@@ -116,6 +117,13 @@ namespace VIVE_Trackers
                 return;
             }
 
+            int c = resp.Length / 64;
+            for (int i = 0; i < c; i++)
+                ParseUSBData(resp.Skip(i * 64).Take(64).ToArray());
+        }
+
+        private void ParseUSBData(byte[] resp)
+        {
             if (resp[0] == 0)
                 resp = resp.Skip(1).ToArray();
 
@@ -280,45 +288,22 @@ namespace VIVE_Trackers
             {
                 //Log.WriteLine($"({MacToStr(deviceAddr)}) indx:{data[0]:d3}, state:{data[1]:X2}", Log.LogType.Blue);
                 dev.Update(data[1]);
-                if (dev.IsClickedBtn)
-                {
-                    //clickMapCreation = !clickMapCreation;
-                    //if (clickMapCreation)
-                    //{
-                    //    Log.WriteLine("START MAP", Log.LogType.Green);
-                    //    LambdaStartMap(device_idx);
-                    //}
-                    //else
-                    //{
-                    //    Log.WriteLine("END MAP", Log.LogType.Green);
-                    //    LambdaEndMap(device_idx);
-                    //}
+                if (dev.IsBtnClicked)
                     OnButtonClicked?.Invoke(device_idx);
-                }
+                if (dev.IsBtnDown)
+                    OnButtonDown?.Invoke(device_idx);
                 OnTrackerStatus?.Invoke(dev);
                 return;
             }
             if (data.Length != 0x25 && data.Length != 0x27)
             {
                 dev.Update(data[1]);
-                if (dev.IsClickedBtn)
-                {
-                    //clickMapCreation = !clickMapCreation;
-                    //if (clickMapCreation)
-                    //{
-                    //    //Log.WriteLine("START MAP", Log.LogType.Green);
-                    //    //LambdaStartMap(device_idx);
-                    //}
-                    //else
-                    //{
-                    //    Log.WriteLine("END MAP", Log.LogType.Green);
-                    //    LambdaEndMap(device_idx);
-                    //}
-
+                if (dev.IsBtnClicked)
                     OnButtonClicked?.Invoke(device_idx);
-                }
+                if (dev.IsBtnDown)
+                    OnButtonDown?.Invoke(device_idx);
                 OnTrackerStatus?.Invoke(dev);
-                Log.WarningLine("Неизвестные данные при связанном устройстве. Length:" + data.Length);
+                Log.WarningLine("РќРµРёР·РІРµСЃС‚РЅС‹Рµ РґР°РЅРЅС‹Рµ РїСЂРё СЃРІСЏР·Р°РЅРЅРѕРј СѓСЃС‚СЂРѕР№СЃС‚РІРµ. Length:" + data.Length);
                 //HEXDump(data);
                 Log.WriteLine($"({MacToStr(deviceAddr)}) indx:{data[0]:d3}, state:{data[1]:X2}, unk1:{data[2]:X2}, unk2:{data[3]:X2}", Log.LogType.Blue);
                 return;
@@ -364,22 +349,10 @@ namespace VIVE_Trackers
 
             OnTrack?.Invoke(device_idx, trackData, delta_ms);
 
-            if (dev.IsClickedBtn)
-            {
-                //clickMapCreation = !clickMapCreation;
-                //if (clickMapCreation)
-                //{
-                //    Log.WriteLine("START MAP", Log.LogType.Green);
-                //    LambdaStartMap(device_idx);
-
-                //}
-                //else
-                //{
-                //    Log.WriteLine("END MAP", Log.LogType.Green);
-                //    LambdaEndMap(device_idx);
-                //}
+            if (dev.IsBtnClicked)
                 OnButtonClicked?.Invoke(device_idx);
-            }
+            if (dev.IsBtnDown)
+                OnButtonDown?.Invoke(device_idx);
         }
         //bool clickMapCreation = false;
         void ParseIncomingACK(byte[] device_addr, byte[] raw_data)
@@ -628,7 +601,7 @@ namespace VIVE_Trackers
         }
         
         /// <summary>
-        /// Обработка состояния карты
+        /// РћР±СЂР°Р±РѕС‚РєР° СЃРѕСЃС‚РѕСЏРЅРёСЏ РєР°СЂС‚С‹
         /// </summary>
         /// <param name="device_idx"></param>
         /// <param name="state"></param>
@@ -695,7 +668,7 @@ namespace VIVE_Trackers
             List<byte> output = new List<byte>(BUFFER_SIZE); // 65 byte for command
             output.AddRange(StructConverter.Pack("<BB", cmd_id, (byte)(data.Length + 1)));
             output.AddRange(data);
-            output.AddRange(new byte[Math.Max(0, BUFFER_SIZE - output.Count)]); // заполняем остальнное нулями до размера 65
+            output.AddRange(new byte[Math.Max(0, BUFFER_SIZE - output.Count)]); // Р·Р°РїРѕР»РЅСЏРµРј РѕСЃС‚Р°Р»СЊРЅРЅРѕРµ РЅСѓР»СЏРјРё РґРѕ СЂР°Р·РјРµСЂР° 65
             byte[] result = new byte[0];
             try
             {
@@ -748,7 +721,7 @@ namespace VIVE_Trackers
             int BUFFER_SIZE = 0x41;
             List<byte> output = new List<byte>(BUFFER_SIZE); // 65 byte for command
             output.AddRange(data);
-            output.AddRange(new byte[Math.Max(0, BUFFER_SIZE - output.Count)]); // заполняем остальнное нулями до размера 65
+            output.AddRange(new byte[Math.Max(0, BUFFER_SIZE - output.Count)]); // Р·Р°РїРѕР»РЅСЏРµРј РѕСЃС‚Р°Р»СЊРЅРЅРѕРµ РЅСѓР»СЏРјРё РґРѕ СЂР°Р·РјРµСЂР° 65
             byte[] result = new byte[0];
             try
             {
@@ -807,7 +780,7 @@ namespace VIVE_Trackers
         }
 
         /// <summary>
-        /// разблокирует ранее привязанные устройства по их индексу
+        /// СЂР°Р·Р±Р»РѕРєРёСЂСѓРµС‚ СЂР°РЅРµРµ РїСЂРёРІСЏР·Р°РЅРЅС‹Рµ СѓСЃС‚СЂРѕР№СЃС‚РІР° РїРѕ РёС… РёРЅРґРµРєСЃСѓ
         /// </summary>
         public void ApplicationStarted()
         {
@@ -846,7 +819,7 @@ namespace VIVE_Trackers
             send_cmd(DCMD_REQUEST_RF_CHANGE_BEHAVIOR, StructConverter.Pack($"<BB{MAX_TRACKER_COUNT}BB", ApplicationStatus.READY_MODE, 0x01, flags, 0x00), true);
         }
         /// <summary>
-        /// должно вызываться при выключении программы, при этом статус привязаного устройства меняется на 3000005
+        /// РґРѕР»Р¶РЅРѕ РІС‹Р·С‹РІР°С‚СЊСЃСЏ РїСЂРё РІС‹РєР»СЋС‡РµРЅРёРё РїСЂРѕРіСЂР°РјРјС‹, РїСЂРё СЌС‚РѕРј СЃС‚Р°С‚СѓСЃ РїСЂРёРІСЏР·Р°РЅРѕРіРѕ СѓСЃС‚СЂРѕР№СЃС‚РІР° РјРµРЅСЏРµС‚СЃСЏ РЅР° 3000005
         /// </summary>
         public void CloseApplication()
         {

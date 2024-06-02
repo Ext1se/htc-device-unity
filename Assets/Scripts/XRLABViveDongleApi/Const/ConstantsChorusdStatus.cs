@@ -1,4 +1,4 @@
-namespace VIVE_Trackers.Constants
+﻿namespace VIVE_Trackers.Constants
 {
     internal class ConstantsChorusdStatus
     {

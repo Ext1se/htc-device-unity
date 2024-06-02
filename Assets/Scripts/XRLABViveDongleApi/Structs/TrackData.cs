@@ -1,4 +1,4 @@
-using VIVE_Trackers.Constants;
+﻿using VIVE_Trackers.Constants;
 namespace VIVE_Trackers
 {
     public struct TrackData

@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -17,21 +17,7 @@ public class ShowFPSMobile : MonoBehaviour
 
     private void Awake()
     {
-        //float fraction = 0.5f; // Render at half the resolution of current screen
-        //float fraction = 0.8f;
-        //float fraction = 1f;
-        //Screen.SetResolution((int)(Screen.currentResolution.width * fraction), (int)(Screen.currentResolution.height * fraction), true);
-
-        //don't use vsync on mobile, limit fps instead
-
-        // Sync framerate to monitors refresh rate
-        //Use 'Don't Sync' (0) to not wait for VSync. Value must be 0, 1, 2, 3, or 4
-        //QualitySettings.vSyncCount = 0;
-
-        // Disable screen dimming
-        Screen.sleepTimeout = SleepTimeout.NeverSleep;
-
-        Inicialize(true); //use for testing on editor
+        Inicialize(true);
     }
 
     private IEnumerator FPS()
@@ -56,12 +42,7 @@ public class ShowFPSMobile : MonoBehaviour
 
     void OnGUI()
     {
-        // Display
         GUI.Label(rect, fps, style);
-        //GUI.Label(new Rect(Screen.width - 110, 5, 0, Screen.height * 2 / 100), fps, style);
-
-        //GUI.Label(new Rect(10, 10, Screen.width, Screen.height * 2 / 100), fps, style);
-        //GUI.Label(new Rect(Screen.width - 100, 10, 150, 20), fps, style);
     }
 
     private void Inicialize(bool showFps)

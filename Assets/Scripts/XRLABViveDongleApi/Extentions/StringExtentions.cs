@@ -1,13 +1,13 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 public static class StringExtentions
 {/// <summary>
-    /// Возвращает строку от искомого текста и до конца
+    /// Р’РѕР·РІСЂР°С‰Р°РµС‚ СЃС‚СЂРѕРєСѓ РѕС‚ РёСЃРєРѕРјРѕРіРѕ С‚РµРєСЃС‚Р° Рё РґРѕ РєРѕРЅС†Р°
     /// </summary>
     /// <param name="s"></param>
     /// <param name="value"></param>
-    /// <returns>Возвращает строку от искомого текста и до конца</returns>
+    /// <returns>Р’РѕР·РІСЂР°С‰Р°РµС‚ СЃС‚СЂРѕРєСѓ РѕС‚ РёСЃРєРѕРјРѕРіРѕ С‚РµРєСЃС‚Р° Рё РґРѕ РєРѕРЅС†Р°</returns>
     public static string AfterInclude(this string s, string value, bool emptyIfNotExistsValue = true)
     {
         if (string.IsNullOrEmpty(s)) return "";
@@ -16,11 +16,11 @@ public static class StringExtentions
         return emptyIfNotExistsValue ? "" : s;
     }
     /// <summary>
-    /// Возвращает строку от последнего найденного искомого текста и до конца
+    /// Р’РѕР·РІСЂР°С‰Р°РµС‚ СЃС‚СЂРѕРєСѓ РѕС‚ РїРѕСЃР»РµРґРЅРµРіРѕ РЅР°Р№РґРµРЅРЅРѕРіРѕ РёСЃРєРѕРјРѕРіРѕ С‚РµРєСЃС‚Р° Рё РґРѕ РєРѕРЅС†Р°
     /// </summary>
     /// <param name="s"></param>
     /// <param name="value"></param>
-    /// <returns>Возвращает пустую строку в случае отсутствия искомой строки</returns>
+    /// <returns>Р’РѕР·РІСЂР°С‰Р°РµС‚ РїСѓСЃС‚СѓСЋ СЃС‚СЂРѕРєСѓ РІ СЃР»СѓС‡Р°Рµ РѕС‚СЃСѓС‚СЃС‚РІРёСЏ РёСЃРєРѕРјРѕР№ СЃС‚СЂРѕРєРё</returns>
     public static string AfterLastInclude(this string s, string value, bool emptyIfNotExistsValue = true)
     {
         if (string.IsNullOrEmpty(s)) return "";
@@ -44,12 +44,12 @@ public static class StringExtentions
         return emptyIfNotExistsValue ? "" : s;
     }
     /// <summary>
-    /// Возвращает подстроку
+    /// Р’РѕР·РІСЂР°С‰Р°РµС‚ РїРѕРґСЃС‚СЂРѕРєСѓ
     /// </summary>
     /// <param name="s"></param>
     /// <param name="startIndex"></param>
-    /// <returns>Возвращает строку, если ее можно извлеч, 
-    /// в противном случае возвращает пустую строку</returns>
+    /// <returns>Р’РѕР·РІСЂР°С‰Р°РµС‚ СЃС‚СЂРѕРєСѓ, РµСЃР»Рё РµРµ РјРѕР¶РЅРѕ РёР·РІР»РµС‡, 
+    /// РІ РїСЂРѕС‚РёРІРЅРѕРј СЃР»СѓС‡Р°Рµ РІРѕР·РІСЂР°С‰Р°РµС‚ РїСѓСЃС‚СѓСЋ СЃС‚СЂРѕРєСѓ</returns>
     public static string GetSubstring(this string s, int startIndex)
     {
         if (string.IsNullOrEmpty(s)) return "";
@@ -58,13 +58,13 @@ public static class StringExtentions
         return "";
     }
     /// <summary>
-    /// Возвращает подстроку
+    /// Р’РѕР·РІСЂР°С‰Р°РµС‚ РїРѕРґСЃС‚СЂРѕРєСѓ
     /// </summary>
     /// <param name="s"></param>
     /// <param name="startIndex"></param>
     /// <param name="lenght"></param>
-    /// <returns>Возвращает строку, если ее можно извлеч в указанном диапазоне, 
-    /// в противном случае либо возвращает то что возможно, либо пустую строку</returns>
+    /// <returns>Р’РѕР·РІСЂР°С‰Р°РµС‚ СЃС‚СЂРѕРєСѓ, РµСЃР»Рё РµРµ РјРѕР¶РЅРѕ РёР·РІР»РµС‡ РІ СѓРєР°Р·Р°РЅРЅРѕРј РґРёР°РїР°Р·РѕРЅРµ, 
+    /// РІ РїСЂРѕС‚РёРІРЅРѕРј СЃР»СѓС‡Р°Рµ Р»РёР±Рѕ РІРѕР·РІСЂР°С‰Р°РµС‚ С‚Рѕ С‡С‚Рѕ РІРѕР·РјРѕР¶РЅРѕ, Р»РёР±Рѕ РїСѓСЃС‚СѓСЋ СЃС‚СЂРѕРєСѓ</returns>
     public static string GetSubstring(this string s, int startIndex, int lenght)
     {
         if (string.IsNullOrEmpty(s)) return "";
@@ -154,7 +154,7 @@ public static class StringExtentions
         return false;
     }
     /// <summary>
-    /// разбивает строки по указанному разделителю и удаляет пустые строки
+    /// СЂР°Р·Р±РёРІР°РµС‚ СЃС‚СЂРѕРєРё РїРѕ СѓРєР°Р·Р°РЅРЅРѕРјСѓ СЂР°Р·РґРµР»РёС‚РµР»СЋ Рё СѓРґР°Р»СЏРµС‚ РїСѓСЃС‚С‹Рµ СЃС‚СЂРѕРєРё
     /// </summary>
     /// <param name="s"></param>
     /// <param name="separator"></param>
@@ -165,7 +165,7 @@ public static class StringExtentions
         return s.Split(new string[] { separator }, StringSplitOptions.RemoveEmptyEntries);
     }
     /// <summary>
-    /// удаляет пробелы вначале строки и в конце
+    /// СѓРґР°Р»СЏРµС‚ РїСЂРѕР±РµР»С‹ РІРЅР°С‡Р°Р»Рµ СЃС‚СЂРѕРєРё Рё РІ РєРѕРЅС†Рµ
     /// </summary>
     /// <param name="s"></param>
     /// <returns></returns>
@@ -243,7 +243,7 @@ public static class StringExtentions
     }
     
     /// <summary>
-    /// перемешать список
+    /// РїРµСЂРµРјРµС€Р°С‚СЊ СЃРїРёСЃРѕРє
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <param name="list"></param>
@@ -262,7 +262,7 @@ public static class StringExtentions
     }
     public delegate T ParseAction<T>(string s);
     /// <summary>
-    /// Преобразовывает строку в нужный тип
+    /// РџСЂРµРѕР±СЂР°Р·РѕРІС‹РІР°РµС‚ СЃС‚СЂРѕРєСѓ РІ РЅСѓР¶РЅС‹Р№ С‚РёРї
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <param name="s"></param>

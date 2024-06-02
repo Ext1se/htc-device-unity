@@ -1,4 +1,4 @@
-
+п»ї
 namespace VIVE_Trackers.Constants
 {
     public static class ConstantsChorusdAck
@@ -60,7 +60,7 @@ namespace VIVE_Trackers.Constants
         public const string ACK_LAMBDA_STATUS = "LS";
 
         /// <summary>
-        /// запуск беспроводной прошивки ПО трекеров или свистка?
+        /// Р·Р°РїСѓСЃРє Р±РµСЃРїСЂРѕРІРѕРґРЅРѕР№ РїСЂРѕС€РёРІРєРё РџРћ С‚СЂРµРєРµСЂРѕРІ РёР»Рё СЃРІРёСЃС‚РєР°?
         /// </summary>
         public const string ACK_START_FOTA = "AFM";
         public const string ACK_CAMERA_FPS = "ACF";
@@ -78,7 +78,7 @@ namespace VIVE_Trackers.Constants
         /// </summary>
         public const string ACK_GET_INFO = "AGI"; // 
         /// <summary>
-        /// может не сработать
+        /// РјРѕР¶РµС‚ РЅРµ СЃСЂР°Р±РѕС‚Р°С‚СЊ
         /// </summary>
         public const string ACK_START_MAP = "ALS"; // 
         public const string ACK_END_MAP = "ALE";

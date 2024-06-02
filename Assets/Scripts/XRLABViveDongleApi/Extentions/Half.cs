@@ -1,4 +1,4 @@
-/// ================ Half.cs ====================
+﻿/// ================ Half.cs ====================
 /// The code is free to use for any reason without any restrictions.
 /// Ladislav Lang (2009), Joannes Vermorel (2017)
 
@@ -572,8 +572,8 @@ namespace SystemHalf
         /// <summary>
         /// Returns the absolute value of a half-precision floating-point number.
         /// </summary>
-        /// <param name="value">A number in the range System.Half.MinValue ≤ value ≤ System.Half.MaxValue.</param>
-        /// <returns>A half-precision floating-point number, x, such that 0 ≤ x ≤System.Half.MaxValue.</returns>
+        /// <param name="value">A number in the range System.Half.MinValue в‰¤ value в‰¤ System.Half.MaxValue.</param>
+        /// <returns>A half-precision floating-point number, x, such that 0 в‰¤ x в‰¤System.Half.MaxValue.</returns>
         public static Half Abs(Half value)
         {
             return HalfHelper.Abs(value);

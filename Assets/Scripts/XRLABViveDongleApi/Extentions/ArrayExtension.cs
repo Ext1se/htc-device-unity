@@ -1,4 +1,4 @@
-using HID_ViveTest.PythonLike;
+﻿using HID_ViveTest.PythonLike;
 using System;
 using System.Linq;
 using System.Runtime.InteropServices;
