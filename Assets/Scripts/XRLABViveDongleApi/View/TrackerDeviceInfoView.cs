@@ -14,8 +14,8 @@ public class TrackerDeviceInfoView : MonoBehaviour
     [SerializeField] Image buttonHightLightImg;
 
     TrackerDeviceInfo deviceInfo;
-    IAckable dongleAPI;
-    public IAckable DongleAPI
+    IVIVEDongle dongleAPI;
+    public IVIVEDongle DongleAPI
     {
         get => dongleAPI; 
         set

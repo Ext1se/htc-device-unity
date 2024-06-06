@@ -3,9 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using UnityEngine;
 using VIVE_Trackers.Constants;
-using static VIVE_Trackers.AndroidDongleHID;
+using static VIVE_Trackers.DongleHID;
 using static VIVE_Trackers.TrackData;
 
 namespace VIVE_Trackers
@@ -23,10 +22,12 @@ namespace VIVE_Trackers
         private int stuck_on_not_checked;
         private bool bump_map_once;
 
-        private IAckable hid;
+        private IVIVEDongle hid;
         private byte[] currentAddress = null;
         private string currendAddressStr = null;
         private int currentIndex = -1;
+        public string calib_1 = "";
+        public string calib_2 = "";
 
         public string SerialNumber { get; private set; }
         public string ShipSerialNumber { get; private set; }
@@ -53,13 +54,13 @@ namespace VIVE_Trackers
             get
             {
                 if (currendAddressStr == null && CurrentAddress != null)
-                    currendAddressStr = AndroidDongleHID.MacToStr(CurrentAddress);
+                    currendAddressStr = MacToStr(CurrentAddress);
                 return currendAddressStr;
             }
         }
 
         public bool BumpMapOnce { get => bump_map_once; set => bump_map_once = value; }
-        public long DeltaTime => AndroidDongleHID.TotalMilis - lastTimeUpdate;
+        public long DeltaTime => TotalMilis - lastTimeUpdate;
         public bool IsBtnClicked => (btns & 0x100) > 0 && (last_pose_btns & 0x100) == 0x0;
         public bool IsBtnDown => (btns & 0x100) > 0;
         public bool IsClient => IsInit && !IsHost;
@@ -78,13 +79,13 @@ namespace VIVE_Trackers
         public Status status { get; internal set; }
 
 
-        public TrackerDeviceInfo(IAckable hid)
+        public TrackerDeviceInfo(IVIVEDongle hid)
         {
             this.hid = hid;
             lastTimeUpdate = TotalMilis;
             //IsClient = false;
         }
-        public TrackerDeviceInfo(IAckable hid, byte[] addr)
+        public TrackerDeviceInfo(IVIVEDongle hid, byte[] addr)
         {
             this.hid = hid;
             lastTimeUpdate = TotalMilis;
@@ -125,10 +126,15 @@ namespace VIVE_Trackers
 
         public void SaveToFile()
         {
+#if !UNITY_EDITOR && UNITY_ANDROID
+            var filename = Path.Combine(Application.persistentDataPath, "trackers.json");
+#else
+            var filename = "trackers.json";
+#endif
             JArray array;
-            if (File.Exists(Path.Combine(Application.persistentDataPath, "trackers.json")))
+            if (File.Exists(filename))
             {
-                array = JArray.Parse(File.ReadAllText(Path.Combine(Application.persistentDataPath, "trackers.json")));
+                array = JArray.Parse(File.ReadAllText(filename));
 
                 var device = array.SelectToken($"[?(@SN == '{SerialNumber}')]");
                 if (device != null)
@@ -139,7 +145,7 @@ namespace VIVE_Trackers
                     device["IsHost"] = (JValue)JToken.FromObject(IsHost);
                     device["HasHostMap"] = (JValue)JToken.FromObject(HasHostMap);
                     device["IsConnectedToHost"] = (JValue)JToken.FromObject(IsConnectedToHost);
-                    File.WriteAllText(Path.Combine(Application.persistentDataPath, "trackers.json"), array.ToString());
+                    File.WriteAllText(filename, array.ToString());
                     return;
                 }
             }
@@ -158,10 +164,10 @@ namespace VIVE_Trackers
                 { "CurrentIndex", (JValue)JToken.FromObject(CurrentIndex) }
             };
             array.Add(obj);
-            File.WriteAllText(Path.Combine(Application.persistentDataPath, "trackers.json"), array.ToString());
+            File.WriteAllText(filename, array.ToString());
         }
 
-        public static void InitTrackers(IAckable hid)
+        public static void InitTrackers(IVIVEDongle hid)
         {
             var devices = Get(hid);
             for (int i = 0; i < MAX_TRACKER_COUNT && i < devices.Length; i++)
@@ -187,11 +193,16 @@ namespace VIVE_Trackers
             var indx = MacToIdx(addr);
             return Get(indx);
         }
-        public static TrackerDeviceInfo[] Get(IAckable hid)
+        public static TrackerDeviceInfo[] Get(IVIVEDongle hid)
         {
-            if (File.Exists(Path.Combine(Application.persistentDataPath, "trackers.json")))
+#if !UNITY_EDITOR && UNITY_ANDROID
+            var filename = Path.Combine(Application.persistentDataPath, "trackers.json");
+#else
+            var filename = "trackers.json";
+#endif
+            if (File.Exists(filename))
             {
-                var array = JArray.Parse(File.ReadAllText(Path.Combine(Application.persistentDataPath, "trackers.json")));
+                var array = JArray.Parse(File.ReadAllText(filename));
                 var devices = new List<TrackerDeviceInfo>();
                 foreach (var dev in array)
                 {
@@ -212,6 +223,11 @@ namespace VIVE_Trackers
                 return devices.ToArray();
             }
             return new TrackerDeviceInfo[0];
+        }
+
+        public static TrackerDeviceInfo GetHost()
+        {
+            return Array.Find(Devices, dev => dev != null && dev.CurrentIndex != -1 && dev.IsHost);
         }
 
         public static int[] GetActiveIndexes()
@@ -235,12 +251,12 @@ namespace VIVE_Trackers
             }
         }
 
-        public static TrackerDeviceInfo SetNew(IAckable hid, byte[] addr)
+        public static TrackerDeviceInfo SetNew(IVIVEDongle hid, byte[] addr)
         {
             TrackerDeviceInfo dev = null;
             for (int i = 0; i < Devices.Length; i++)
             {
-                if (Devices[i] == null)
+                if (Devices[i] == null || Devices[i].CurrentIndex == -1)
                 {
                     dev = new TrackerDeviceInfo(hid, addr);
                     Devices[i] = dev;
@@ -350,7 +366,7 @@ namespace VIVE_Trackers
                 if (stuck_on_not_checked == 0 && IsClient && HasHostMap)
                 {
                     Log.WarningLine("ok we're stuck on NOT CHECKED, end the map again");
-                    hid.LambdaEndMap(currentDeviceIndex);
+                    hid.EndScanMap(currentDeviceIndex);
                 }
                 stuck_on_not_checked += 1;
             }

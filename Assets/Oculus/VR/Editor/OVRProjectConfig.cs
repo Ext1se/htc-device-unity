@@ -174,6 +174,9 @@ public class OVRProjectConfig : ScriptableObject, ISerializationCallbackReceiver
     internal string ovrPluginMd5Android = null;
 #endif
 
+    [SerializeField]
+    internal bool showUPMUpdatePrompt = true;
+
     //public const string OculusProjectConfigAssetPath = "Assets/Oculus/OculusProjectConfig.asset";
 
     private static OVRProjectConfig _cachedProjectConfig;

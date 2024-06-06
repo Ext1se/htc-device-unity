@@ -1,23 +1,45 @@
 using System.Collections.Generic;
-using Unity.VisualScripting;
+using System.Threading;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using VIVE_Trackers;
 
+public enum CalibrationStatus
+{
+    Hand_in_front,
+    Hand_up,
+    Hand_down,
+    Tracker_on_the_floor
+}
+
 public class OculusActivityPlugin : MonoBehaviour
 {
+    [SerializeField] Transform head;
+    [SerializeField] Transform leftAnchor;
+    [SerializeField] Transform rightAnchor;
     [SerializeField] Button startScanBtn;
     [SerializeField] Button stopScanBtn;
     [SerializeField] Transform trackerPref;
     [SerializeField] RectTransform trackersParentUI;
+    [SerializeField] TextMeshProUGUI statusText;
 
     Dictionary<int, Transform> trackers = new Dictionary<int, Transform>();
-    IAckable dongleAPI;
+    IVIVEDongle dongleAPI;
     TrackerDeviceInfoView[] deviceViews;
+    Dictionary<OVRInput.Controller, Transform> attachedTrackers = new Dictionary<OVRInput.Controller, Transform>();
+    Transform currentController;
+#if UNITY_EDITOR || UNITY_STANDALONE
+    Thread dongleLoopThread;
+#endif
 
     void Start()
     {
-        dongleAPI = new AndroidDongleHID();
+#if !UNITY_EDITOR && UNITY_ANDROID
+        dongleAPI = new AndroidDongleHID(); 
+#else
+        dongleAPI = new WindowsDongleHID();
+#endif
         dongleAPI.OnTrackerStatus += Trackers_OnTrackerStatus;
         dongleAPI.OnConnected += Trackers_OnConnected;
         dongleAPI.OnDisconnected += Trackers_OnDisconnected;
@@ -36,35 +58,75 @@ public class OculusActivityPlugin : MonoBehaviour
 
         startScanBtn.onClick.AddListener(() => dongleAPI.OpenChannelForScan());
         stopScanBtn.onClick.AddListener(() => dongleAPI.CloseChannelForScan());
+
+#if UNITY_EDITOR || UNITY_STANDALONE
+        dongleLoopThread = new Thread(ThreadDongleLoop);
+        dongleLoopThread.Start();
+#endif
+    }
+
+    void ThreadDongleLoop()
+    {
+        while (dongleAPI != null && dongleAPI.IsInit)
+        {
+            dongleAPI.DoLoop();
+        }
+        Log.WriteLine("Thread exited");
     }
 
     private void Update()
     {
+#if !UNITY_EDITOR && UNITY_ANDROID
         if (dongleAPI.IsInit)
+        {
             dongleAPI.DoLoop();
+            if (OVRInput.Get(OVRInput.RawButton.X)) // calibrate left tracker
+            {
+                //var pos = OVRInput.GetLocalControllerPosition(OVRInput.Controller.LTouch);
+                currentController = leftAnchor;
+            }
+            if (OVRInput.Get(OVRInput.RawButton.A)) // calibrate right tracker
+            {
+                //var pos = OVRInput.GetLocalControllerPosition(OVRInput.Controller.RTouch);
+                currentController = rightAnchor;
+            }
+        } 
+#endif
     }
 
     private void OnApplicationQuit()
     {
-        if (trackers != null)
+        if (dongleAPI != null)
         {
             dongleAPI.CloseApplication();
+            dongleAPI.Dispose();
             dongleAPI = null;
+            Thread.Sleep(1000);
+            dongleLoopThread.Abort();
+            dongleLoopThread = null;
         }
     }
 
     private void OnDestroy()
     {
-        if (trackers != null)
+        if (dongleAPI != null)
         {
             dongleAPI.CloseApplication();
+            dongleAPI.Dispose();
             dongleAPI = null;
+            Thread.Sleep(1000);
+            dongleLoopThread.Abort();
+            dongleLoopThread = null;
         }
     }
 
     private void Trackers_OnButtonClicked(int trackerIndx)
     {
-
+        if (currentController != null)
+        {
+            var offset = trackers[trackerIndx].position - currentController.position;
+            trackers[trackerIndx].parent.position = -offset; 
+        }
     }
 
     private void Trackers_OnTrack(int trackerIndx, TrackData trackData, long time_delta)
@@ -102,7 +164,9 @@ public class OculusActivityPlugin : MonoBehaviour
     {
         if (!trackers.ContainsKey(trackerIndx))
         {
-            var go = Instantiate(trackerPref);
+            var parent = new GameObject($"Tracker ({trackerIndx}) parent");
+            parent.transform.position = Vector3.zero;
+            var go = Instantiate(trackerPref, parent.transform);
             go.name = $"{trackerIndx}";
             trackers.Add(trackerIndx, go.transform);
         }

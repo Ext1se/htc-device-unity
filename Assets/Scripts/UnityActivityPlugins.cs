@@ -22,7 +22,7 @@ namespace UnityService
 
         private byte[] _currentData;
         private long _currentTime;
-        IAckable trackers;
+        IVIVEDongle trackers;
 
         #region MonoBehaviour
 

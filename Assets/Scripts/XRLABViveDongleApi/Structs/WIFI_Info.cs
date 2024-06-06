@@ -17,14 +17,23 @@ namespace VIVE_Trackers
 
         internal static WIFI_Info Load()
         {
+#if UNITY_ANDROID
             if (File.Exists(Path.Combine(Application.persistentDataPath, "wifi_info.json")))
-                return JsonConvert.DeserializeObject<WIFI_Info>(File.ReadAllText("wifi_info.json"));
+                return JsonConvert.DeserializeObject<WIFI_Info>(Path.Combine(Application.persistentDataPath, "wifi_info.json")); 
+#else
+            if (File.Exists("wifi_info.json"))
+                return JsonConvert.DeserializeObject<WIFI_Info>("wifi_info.json");
+#endif
             else return Default;
         }
         internal void Save()
         {
             var json = JsonConvert.SerializeObject(this);
-            File.WriteAllText(Path.Combine(Application.persistentDataPath, "wifi_info.json"), json);
+#if UNITY_ANDROID
+            File.WriteAllText(Path.Combine(Application.persistentDataPath, "wifi_info.json"), json); 
+#else
+            File.WriteAllText("wifi_info.json", json);
+#endif
         }
     }
 }
