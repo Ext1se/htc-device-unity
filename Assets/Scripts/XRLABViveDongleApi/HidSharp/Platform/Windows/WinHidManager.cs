@@ -144,9 +144,24 @@ namespace HidSharp.Platform.Windows
                 {
                     // Apparently we have no P/Invoke access.
                 }
+#if UNITY_EDITOR
+                UnityEditor.EditorApplication.playModeStateChanged += EditorApplication_playModeStateChanged; 
+#endif
             }
         }
 
+#if UNITY_EDITOR
+        private void EditorApplication_playModeStateChanged(UnityEditor.PlayModeStateChange obj)
+        {
+            if(obj == UnityEditor.PlayModeStateChange.ExitingPlayMode || obj == UnityEditor.PlayModeStateChange.ExitingEditMode)
+            {
+                isRun = false;
+            }
+        } 
+#endif
+#if UNITY_EDITOR
+        bool isRun = false;
+#endif
 #if BLUETOOTH_NOTIFY
         struct BleRadio { public IntPtr NotifyHandle, RadioHandle; }
 #endif
@@ -158,18 +173,18 @@ namespace HidSharp.Platform.Windows
             var wc = new NativeMethods.WNDCLASS() { ClassName = className, WindowProc = windowProc };
             RunAssert(0 != NativeMethods.RegisterClass(ref wc), "HidSharp RegisterClass failed.");
 
-#if UNITY_EDITOR
+#if !UNITY_EDITOR
             var hwnd = NativeMethods.CreateWindowEx(0, className, className, 0,
                                                         NativeMethods.CW_USEDEFAULT, NativeMethods.CW_USEDEFAULT, NativeMethods.CW_USEDEFAULT, NativeMethods.CW_USEDEFAULT,
                                                         NativeMethods.HWND_MESSAGE,
                                                         IntPtr.Zero, IntPtr.Zero, IntPtr.Zero); 
-#else
-            var hwnd = NativeMethods.GetWindowHandle();
-#endif
             RunAssert(hwnd != IntPtr.Zero, "HidSharp CreateWindow failed.");
 
             var hidNotifyHandle = RegisterDeviceNotification(hwnd, NativeMethods.HidD_GetHidGuid());
             var bleNotifyHandle = RegisterDeviceNotification(hwnd, NativeMethods.GuidForBluetoothLEDevice);
+#else
+            //var hwnd = NativeMethods.GetWindowHandle();
+#endif
 
 #if BLUETOOTH_NOTIFY
             var bleHandles = new List<BleRadio>(); // FIXME: We don't handle the removal of USB Bluetooth dongles here, as far as notifications go.
@@ -213,18 +228,25 @@ namespace HidSharp.Platform.Windows
 
             readyCallback();
 
+#if !UNITY_EDITOR
             NativeMethods.MSG msg;
             while (true)
             {
                 int result = NativeMethods.GetMessage(out msg, hwnd, 0, 0);
                 if (result == 0 || result == -1)
                 {
-                    break; 
+                    break;
                 }
 
                 NativeMethods.TranslateMessage(ref msg);
                 NativeMethods.DispatchMessage(ref msg);
+            } 
+#else
+            while (isRun)
+            {
+                Thread.Sleep(1);
             }
+#endif
 
             //lock (_bleDiscoveryThread) { _bleDiscoveryShuttingDown = true; Monitor.Pulse(_bleDiscoveryThread); }
             lock (_notifyThread) { _notifyThreadShuttingDown = true; Monitor.Pulse(_notifyThread); }
@@ -233,15 +255,27 @@ namespace HidSharp.Platform.Windows
             _notifyThread.Join();
             _serialWatcherThread.Join();
 
+#if !UNITY_EDITOR
             UnregisterDeviceNotification(hidNotifyHandle);
-            UnregisterDeviceNotification(bleNotifyHandle);
+            UnregisterDeviceNotification(bleNotifyHandle); 
+#endif
 #if BLUETOOTH_NOTIFY
             foreach (var bleHandle in bleHandles) { UnregisterDeviceNotification(bleHandle.NotifyHandle); NativeMethods.CloseHandle(bleHandle.RadioHandle); }
 #endif
 
-            RunAssert(NativeMethods.DestroyWindow(hwnd), "HidSharp DestroyWindow failed.");
+#if !UNITY_EDITOR
+            RunAssert(NativeMethods.DestroyWindow(hwnd), "HidSharp DestroyWindow failed."); 
+#endif
             RunAssert(NativeMethods.UnregisterClass(className, IntPtr.Zero), "HidSharp UnregisterClass failed.");
             GC.KeepAlive(windowProc);
+        }
+
+        public override void Dispose()
+        {
+            base.Dispose();
+#if UNITY_EDITOR
+            isRun = false; 
+#endif
         }
 
         static IntPtr  RegisterDeviceNotification(IntPtr hwnd, Guid guid)

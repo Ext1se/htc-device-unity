@@ -191,5 +191,10 @@ namespace HidSharp.Platform
         {
             get;
         }
+
+        public virtual void Dispose()
+        {
+
+        }
     }
 }

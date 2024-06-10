@@ -5,9 +5,11 @@ namespace VIVE_Trackers
     public delegate void TrackCallback(int trackerIndx, TrackData trackData, long time_delta);
     public delegate void TrackerStatusCallback(TrackerDeviceInfo device);
     public delegate void DeviceCallback(int trackerIndx);
+    public delegate void DongleCallback(PairState[] states);
 
     public interface IVIVEDongle : IDisposable
     {
+        event DongleCallback OnDongleStatus;
         event TrackerStatusCallback OnTrackerStatus;
         event TrackCallback OnTrack;
         event DeviceCallback OnConnected;

@@ -22,7 +22,8 @@ namespace VIVE_Trackers
         private AndroidJavaObject _unityActivity;
         private AndroidJavaObject _pluginInstance;
         private bool isDisposed = false;
-        public override bool IsInit => _pluginInstance != null;
+        bool isInit = false;
+        public override bool IsInit => isInit && _pluginInstance != null;
 
         public AndroidDongleHID()
         {
@@ -34,26 +35,34 @@ namespace VIVE_Trackers
 
         public override void Init()
         {
+            isInit = false;
             var _unityClass = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
             _unityActivity = _unityClass.GetStatic<AndroidJavaObject>("currentActivity");
             _pluginInstance = new AndroidJavaObject(pluginName);
             if (_pluginInstance == null)
             {
                 Log.WriteLine("Plugin Instance Error");
+                return;
             }
 
             _pluginInstance.Call("setContext", _unityActivity);
             Log.WriteLine("Call 'prepare'");
-            _pluginInstance.Call("prepare");
+            if (!_pluginInstance.Call<bool>("prepare"))
+            {
+                Log.WriteLine("Plugin Instance Error");
+                _pluginInstance = null;
+                return;
+            }
 
             Log.WriteLine("Call 'startReader'");
             _pluginInstance.Call("startReader");
+            isInit = true;
             // загружаем ранее привязанные устройства
             InitTrackers(this);
         }
         protected override void DoLoop()
         {
-            if (isDisposed) return;
+            if (isDisposed || !isInit) return;
             if (_pluginInstance == null)
             {
                 isStarted = false;

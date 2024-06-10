@@ -46,6 +46,7 @@ namespace VIVE_Trackers
         public event DeviceCallback OnDisconnected;
         public event DeviceCallback OnButtonClicked;
         public event DeviceCallback OnButtonDown;
+        public event DongleCallback OnDongleStatus;
 
         public bool IsInit => _pluginInstance != null;
 
@@ -201,6 +202,7 @@ namespace VIVE_Trackers
             if (current_host_indx >= 0)
                 if (((ushort)pair_state[current_host_indx] & ConstantsChorusdStatus.PAIR_STATE_PAIRED) == 0)
                     handle_disconnected(current_host_indx);
+            OnDongleStatus?.Invoke(pair_state);
         }
 
         void ParseTrackerIncoming(byte[] data)

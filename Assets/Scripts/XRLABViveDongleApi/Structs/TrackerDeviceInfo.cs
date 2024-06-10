@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using Meta.WitAi.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -127,14 +128,16 @@ namespace VIVE_Trackers
         public void SaveToFile()
         {
 #if !UNITY_EDITOR && UNITY_ANDROID
-            var filename = Path.Combine(Application.persistentDataPath, "trackers.json");
+            var filename = Path.Combine(UnityEngine.Application.persistentDataPath, "trackers.json");
 #else
             var filename = "trackers.json";
 #endif
             JArray array;
             if (File.Exists(filename))
             {
-                array = JArray.Parse(File.ReadAllText(filename));
+                var json = File.ReadAllText(filename);
+                Log.WriteLine(json);
+                array = JArray.Parse(json);
 
                 var device = array.SelectToken($"[?(@SN == '{SerialNumber}')]");
                 if (device != null)
@@ -196,13 +199,15 @@ namespace VIVE_Trackers
         public static TrackerDeviceInfo[] Get(IVIVEDongle hid)
         {
 #if !UNITY_EDITOR && UNITY_ANDROID
-            var filename = Path.Combine(Application.persistentDataPath, "trackers.json");
+            var filename = Path.Combine(UnityEngine.Application.persistentDataPath, "trackers.json");
 #else
             var filename = "trackers.json";
 #endif
             if (File.Exists(filename))
             {
-                var array = JArray.Parse(File.ReadAllText(filename));
+                var json = File.ReadAllText(filename);
+                Log.WriteLine(json);
+                var array = JArray.Parse(json);
                 var devices = new List<TrackerDeviceInfo>();
                 foreach (var dev in array)
                 {

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using static VIVE_Trackers.TrackerDeviceInfo;
 
@@ -65,8 +66,8 @@ namespace VIVE_Trackers
             byte[] resp = new byte[0x400];
             try
             {
-                //Log.Write(">>>");
                 var readCount = stream.Read(resp, 0, resp.Length);
+                UnityEngine.Debug.Log(">> " + readCount + " bytes");
                 if (readCount == 0)
                     return;
                 Array.Resize(ref resp, readCount);
@@ -82,7 +83,10 @@ namespace VIVE_Trackers
                 return;
             }
             if (isDisposed) return;
-            ParseUSBData(resp);
+            int len = 65;
+            int c = resp.Length / len;
+            for (int i = 0; i < c; i++)
+                ParseUSBData(resp.Skip(i * len).Take(len).ToArray());
         }
 
         protected override void SaveTrackerInfo(TrackerDeviceInfo info)

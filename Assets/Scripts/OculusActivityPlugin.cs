@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections;
 using System.Threading;
 using TMPro;
 using UnityEngine;
@@ -33,7 +34,7 @@ public class OculusActivityPlugin : MonoBehaviour
     Thread dongleLoopThread;
 #endif
 
-    void Start()
+    private IEnumerable Start()
     {
 #if !UNITY_EDITOR && UNITY_ANDROID
         dongleAPI = new AndroidDongleHID(); 
@@ -46,6 +47,13 @@ public class OculusActivityPlugin : MonoBehaviour
         dongleAPI.OnTrack += Trackers_OnTrack;
         dongleAPI.OnButtonClicked += Trackers_OnButtonClicked;
         dongleAPI.Init();
+
+        while(!dongleAPI.IsInit)
+        {
+            yield return new WaitForFixedUpdate();
+            dongleAPI.Init();
+        }
+        Log.WriteLine("Dongle is INITIATED OK!!!"); ;
 
         if (trackersParentUI != null)
         {
@@ -65,6 +73,7 @@ public class OculusActivityPlugin : MonoBehaviour
 #endif
     }
 
+#if UNITY_EDITOR || UNITY_STANDALONE
     void ThreadDongleLoop()
     {
         while (dongleAPI != null && dongleAPI.IsInit)
@@ -72,24 +81,25 @@ public class OculusActivityPlugin : MonoBehaviour
             dongleAPI.DoLoop();
         }
         Log.WriteLine("Thread exited");
-    }
+    } 
+#endif
 
     private void Update()
     {
 #if !UNITY_EDITOR && UNITY_ANDROID
-        if (dongleAPI.IsInit)
+        if (dongleAPI != null && dongleAPI.IsInit)
         {
             dongleAPI.DoLoop();
-            if (OVRInput.Get(OVRInput.RawButton.X)) // calibrate left tracker
-            {
-                //var pos = OVRInput.GetLocalControllerPosition(OVRInput.Controller.LTouch);
-                currentController = leftAnchor;
-            }
-            if (OVRInput.Get(OVRInput.RawButton.A)) // calibrate right tracker
-            {
-                //var pos = OVRInput.GetLocalControllerPosition(OVRInput.Controller.RTouch);
-                currentController = rightAnchor;
-            }
+            //if (OVRInput.Get(OVRInput.RawButton.X)) // calibrate left tracker
+            //{
+            //    //var pos = OVRInput.GetLocalControllerPosition(OVRInput.Controller.LTouch);
+            //    currentController = leftAnchor;
+            //}
+            //if (OVRInput.Get(OVRInput.RawButton.A)) // calibrate right tracker
+            //{
+            //    //var pos = OVRInput.GetLocalControllerPosition(OVRInput.Controller.RTouch);
+            //    currentController = rightAnchor;
+            //}
         } 
 #endif
     }
@@ -102,8 +112,10 @@ public class OculusActivityPlugin : MonoBehaviour
             dongleAPI.Dispose();
             dongleAPI = null;
             Thread.Sleep(1000);
+#if UNITY_EDITOR || UNITY_STANDALONE
             dongleLoopThread.Abort();
-            dongleLoopThread = null;
+            dongleLoopThread = null; 
+#endif
         }
     }
 
@@ -115,8 +127,10 @@ public class OculusActivityPlugin : MonoBehaviour
             dongleAPI.Dispose();
             dongleAPI = null;
             Thread.Sleep(1000);
+#if UNITY_EDITOR || UNITY_STANDALONE
             dongleLoopThread.Abort();
-            dongleLoopThread = null;
+            dongleLoopThread = null; 
+#endif
         }
     }
 
