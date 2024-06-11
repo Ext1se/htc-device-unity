@@ -80,7 +80,7 @@ namespace VIVE_Trackers.Constants
         /// <summary>
         /// может не сработать
         /// </summary>
-        public const string ACK_START_MAP = "ALS"; // 
+        public const string ACK_START_MAP = "AHE"; // 
         public const string ACK_END_MAP = "ALE";
         /// <summary>
         /// sets DeviceID, WiFi related?

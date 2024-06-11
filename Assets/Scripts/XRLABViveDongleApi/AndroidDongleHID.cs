@@ -59,6 +59,9 @@ namespace VIVE_Trackers
             isInit = true;
             // загружаем ранее привязанные устройства
             InitTrackers(this);
+            var dev_host = GetHost();
+            if (dev_host != null)
+                current_host_indx = dev_host.CurrentIndex;
         }
         protected override void DoLoop()
         {

@@ -1,3 +1,4 @@
+using System;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -12,6 +13,8 @@ public class TrackerDeviceInfoView : MonoBehaviour
     [SerializeField] Image batteryImg;
     [SerializeField] Image buttonHightLightImg;
     [SerializeField] TextMeshProUGUI statusText;
+    [SerializeField] TMP_Dropdown roleIDDD;
+    [SerializeField] Button centralBtn;
 
     TrackerDeviceInfo deviceInfo;
     IVIVEDongle dongleAPI;
@@ -40,6 +43,21 @@ public class TrackerDeviceInfoView : MonoBehaviour
         currentIndex = transform.GetSiblingIndex();
         bgFromColor = bgImg.color;
         lightFromColor = bgLight.color;
+
+        roleIDDD.onValueChanged.AddListener(OnRoleChange);
+        centralBtn.onClick.AddListener(OnCentralBtnClick);
+    }
+
+    private void OnCentralBtnClick()
+    {
+        currentIndex = transform.GetSiblingIndex();
+        dongleAPI.ExperimentalFileDownload(currentIndex);
+    }
+
+    private void OnRoleChange(int roleID)
+    {
+        if (deviceInfo != null)
+            dongleAPI.SetRoleID(deviceInfo.SerialNumber, roleID);
     }
 
     void Update()
@@ -59,7 +77,6 @@ public class TrackerDeviceInfoView : MonoBehaviour
     {
         UnityDispatcher.Invoke(() =>
         {
-            currentIndex = transform.GetSiblingIndex();
             var state = states[currentIndex];
             switch (state)
             {
@@ -99,58 +116,69 @@ public class TrackerDeviceInfoView : MonoBehaviour
 
     private void DongleAPI_OnTrackerStatus(TrackerDeviceInfo device)
     {
-        UnityDispatcher.Invoke(() =>
+        if (device.CurrentIndex == currentIndex)
         {
-            if (device.CurrentIndex == currentIndex)
+            deviceInfo = device;
+            UnityDispatcher.Invoke(() =>
             {
-                var battr = (device.Battery / 50f) * 6;
+                centralBtn.interactable = true;
+                roleIDDD.interactable = true;
+                roleIDDD.SetValueWithoutNotify(deviceInfo.RoleID);
+                var battr = (deviceInfo.Battery / 50f) * 6;
                 batteryImg.fillAmount = battr;
-            }
-        });
+            });
+        }
     }
 
     private void DongleAPI_OnDisconnected(int trackerIndx)
     {
-        UnityDispatcher.Invoke(() =>
+        if (currentIndex == trackerIndx)
         {
-            currentIndex = transform.GetSiblingIndex();
-            if (currentIndex == trackerIndx)
+            UnityDispatcher.Invoke(() =>
             {
+                currentIndex = transform.GetSiblingIndex();
+                centralBtn.interactable = false;
+                roleIDDD.interactable = false;
                 batteryImg.fillAmount = 0;
                 isConnected = false;
-            }
-        });
+            });
+        }
     }
 
     private void DongleAPI_OnConnected(int trackerIndx)
     {
-        UnityDispatcher.Invoke(() =>
+        if (currentIndex == trackerIndx)
         {
-            currentIndex = transform.GetSiblingIndex();
-            if (currentIndex == trackerIndx)
+            UnityDispatcher.Invoke(() =>
             {
+                roleIDDD.interactable = deviceInfo != null;
+                centralBtn.interactable = true;
+                if (deviceInfo != null)
+                    roleIDDD.SetValueWithoutNotify(deviceInfo.RoleID);
                 isConnected = true;
-            }
-        });
+            });
+        }
     }
 
     private void DongleAPI_OnButtonClicked(int trackerIndx)
     {
-        UnityDispatcher.Invoke(() =>
+        if (currentIndex == trackerIndx)
         {
-            currentIndex = transform.GetSiblingIndex();
-            if (currentIndex == trackerIndx)
-                buttonHightLightImg.gameObject.SetActive(false);
-        });
+            UnityDispatcher.Invoke(() =>
+            {
+                buttonHightLightImg.gameObject.SetActive(true);
+            });
+        }
     }
 
     private void DongleAPI_OnButtonDown(int trackerIndx)
     {
-        UnityDispatcher.Invoke(() =>
+        if (currentIndex == trackerIndx)
         {
-            currentIndex = transform.GetSiblingIndex();
-            if (currentIndex == trackerIndx)
+            UnityDispatcher.Invoke(() =>
+            {
                 buttonHightLightImg.gameObject.SetActive(true);
-        });
+            });
+        }
     }
 }

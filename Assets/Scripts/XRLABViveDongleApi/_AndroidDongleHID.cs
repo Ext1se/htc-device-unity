@@ -15,7 +15,7 @@ using static VIVE_Trackers.TrackerDeviceInfo;
 
 namespace VIVE_Trackers
 {
-    public class _AndroidDongleHID : IVIVEDongle
+    /*public class _AndroidDongleHID : IVIVEDongle
     {
         public const byte MAX_TRACKER_COUNT = 5;
         const string pluginName = "atom.mining.usblibrary.core.UnityAPI";//"com.ext1se.unity_activity.DonglePluginActivity";
@@ -47,6 +47,7 @@ namespace VIVE_Trackers
         public event DeviceCallback OnButtonClicked;
         public event DeviceCallback OnButtonDown;
         public event DongleCallback OnDongleStatus;
+        public event DongleInfoCallback OnDongleInfo;
 
         public bool IsInit => _pluginInstance != null;
 
@@ -842,12 +843,22 @@ namespace VIVE_Trackers
 
         private void ShowInfo()
         {
-            Log.WriteLine($"PCBID: {get_PCBID()}"); //equestPCBID
-            Log.WriteLine($"SKUID: {get_SKUID()}"); //RequestSKUID
-            Log.WriteLine($"SN: {get_SN()}"); // RequestSN
-            Log.WriteLine($"ShipSN: {get_ShipSN()}"); // RequestShipSN
-            Log.WriteLine($"CapFPC: {get_CapFPC()}"); // RequestCapFPC
-            Log.WriteLine($"ROMVersion: {get_ROMVersion()}"); // QueryROMVersion
+            //Log.WriteLine($"PCBID: {get_PCBID()}"); //equestPCBID
+            //Log.WriteLine($"SKUID: {get_SKUID()}"); //RequestSKUID
+            //Log.WriteLine($"SN: {get_SN()}"); // RequestSN
+            //Log.WriteLine($"ShipSN: {get_ShipSN()}"); // RequestShipSN
+            //Log.WriteLine($"CapFPC: {get_CapFPC()}"); // RequestCapFPC
+            //Log.WriteLine($"ROMVersion: {get_ROMVersion()}"); // QueryROMVersion
+
+            OnDongleInfo?.Invoke(new KeyValuePair<string, string>[]
+                {
+                    new KeyValuePair<string, string>("PCBID", get_PCBID()),
+                    new KeyValuePair<string, string>("SKUID", get_SKUID()),
+                    new KeyValuePair<string, string>("SN", get_SN()),
+                    new KeyValuePair<string, string>("ShipSN", get_ShipSN()),
+                    new KeyValuePair<string, string>("CapFPC", get_CapFPC()),
+                    new KeyValuePair<string, string>("ROMVersion", get_ROMVersion())
+                });
         }
 
         public void PowerOffAll()
@@ -863,17 +874,23 @@ namespace VIVE_Trackers
             SendAckToAll(ConstantsChorusdAck.ACK_POWER_OFF_CLEAR_PAIRING_LIST);
             SendAckToAll(ConstantsChorusdAck.ACK_RESET);
         }
-        public void Info()
+        public void GetDongleInfo()
         {
             ShowInfo();
         }
-        public void TrackerInfo(int indx)
+        public void GetTrackerStatus(int indx)
         {
             var dev = Get(indx);
             if (dev != null)
             {
                 OnTrackerStatus?.Invoke(dev);
             }
+        }
+
+        public void Restart()
+        {
+            //StandByAll();
+            SendAckToAll(ConstantsChorusdAck.ACK_RESET);
         }
 
         void handle_disconnected(int idx)
@@ -904,13 +921,21 @@ namespace VIVE_Trackers
         protected string get_CapFPC() => send_cmd(DCMD_GET_CR_ID, CR_ID_CAP_FPC, false).DecodeToUTF8();
         protected string get_ROMVersion() => send_cmd(DCMD_QUERY_ROM_VERSION, 0x00, false).DecodeToUTF8();
 
-        void IVIVEDongle.EndScanMap(byte indx)
+        void IVIVEDongle.ScanMap(int indx)
         {
-            LambdaEndMap(indx);
+            var dev = Get(indx);
+            //LambdaEndMap(indx);
+            if (dev.IsHost)
+                SendAckTo(dev.CurrentAddress, ConstantsChorusdAck.ACK_LAMBDA_COMMAND + $"{ConstantsChorusdStatus.ASK_MAP}");
+            else Log.ErrorLine($"[ASK FOR MAP] Device:SN-{dev.SerialNumber} INDX-{dev.CurrentIndex} is not host");
         }
-        private void LambdaEndMap(byte indx)
+        void IVIVEDongle.EndScanMap(int indx)
         {
-            SendAckTo(indx, ConstantsChorusdAck.ACK_END_MAP);
+            var dev = Get(indx);
+            //LambdaEndMap(dev.CurrentAddress);
+            if (dev.IsHost)
+                SendAckTo(dev.CurrentAddress, ConstantsChorusdAck.ACK_END_MAP);
+            else Log.ErrorLine($"[ASK_FOR_END_MAP] Device:SN-{dev.SerialNumber} INDX-{dev.CurrentIndex} is not host");
         }
         //void LambdaStartMap(byte indx)
         //{
@@ -1096,6 +1121,16 @@ namespace VIVE_Trackers
         {
             isDisposed = true;
         }
+
+        public bool SetRoleID(string serialNumber, int value)
+        {
+            throw new NotImplementedException();
+        }
+
+        public int GetRoleID(string serialNumber)
+        {
+            throw new NotImplementedException();
+        }
         #endregion
-    }
+    }*/
 }

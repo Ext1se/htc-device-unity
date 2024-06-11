@@ -1,0 +1,26 @@
+[
+  {
+    "SN": "FA3AR3B00445",
+    "SHIPSN": "43A3339V02303",
+    "SKU": "00000000",
+    "PCB": "000000FF",
+    "Firmware": "1.0.999.152",
+    "IsHost": true,
+    "HasHostMap": false,
+    "IsConnectedToHost": false,
+    "CurrentIndex": 4,
+    "RoleID": 0
+  },
+  {
+    "SN": "FA3AR3B00453",
+    "SHIPSN": "43A3339V02424",
+    "SKU": "00000000",
+    "PCB": "000000FF",
+    "Firmware": "1.0.999.152",
+    "IsHost": false,
+    "HasHostMap": false,
+    "IsConnectedToHost": false,
+    "CurrentIndex": 2,
+    "RoleID": 3
+  }
+]

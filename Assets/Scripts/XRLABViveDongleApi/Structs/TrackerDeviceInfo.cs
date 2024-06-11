@@ -69,6 +69,7 @@ namespace VIVE_Trackers
         public bool IsConnectedToHost { get; set; }
         public bool HasHostMap { get; set; }
         public bool IsConnected => IsHost || IsConnectedToHost;
+        public int RoleID { get; set; }
 
         public bool IsInit =>
             !string.IsNullOrEmpty(SerialNumber) && !string.IsNullOrEmpty(ShipSerialNumber) &&
@@ -116,6 +117,9 @@ namespace VIVE_Trackers
                 case ConstantsChorusdAck.ACK_VERSION_ALT:
                     FirmwareVersion = value;
                     return true;
+                case ConstantsChorusdAck.ACK_ARI:
+                    RoleID = value.ToInt();
+                    return true;
             }
             return false;
         }
@@ -148,6 +152,7 @@ namespace VIVE_Trackers
                     device["IsHost"] = (JValue)JToken.FromObject(IsHost);
                     device["HasHostMap"] = (JValue)JToken.FromObject(HasHostMap);
                     device["IsConnectedToHost"] = (JValue)JToken.FromObject(IsConnectedToHost);
+                    device["RoleID"] = (JValue)JToken.FromObject(RoleID);
                     File.WriteAllText(filename, array.ToString());
                     return;
                 }
@@ -164,7 +169,8 @@ namespace VIVE_Trackers
                 { "IsHost", (JValue) JToken.FromObject(IsHost) },
                 { "HasHostMap", (JValue) JToken.FromObject(HasHostMap) },
                 { "IsConnectedToHost", (JValue) JToken.FromObject(IsConnectedToHost) },
-                { "CurrentIndex", (JValue)JToken.FromObject(CurrentIndex) }
+                { "CurrentIndex", (JValue)JToken.FromObject(CurrentIndex) },
+                { "RoleID", (JValue)JToken.FromObject(RoleID) }
             };
             array.Add(obj);
             File.WriteAllText(filename, array.ToString());
@@ -190,6 +196,10 @@ namespace VIVE_Trackers
         public static TrackerDeviceInfo Get(int indx)
         {
             return Array.Find(Devices, dev => dev != null && dev.CurrentIndex == indx);
+        }
+        public static TrackerDeviceInfo Get(string serialNumber)
+        {
+            return Array.Find(Devices, dev => dev != null && dev.SerialNumber == serialNumber);
         }
         public static TrackerDeviceInfo Get(byte[] addr)
         {
@@ -222,6 +232,7 @@ namespace VIVE_Trackers
                         IsHost = dev["IsHost"].Value<bool>(),
                         HasHostMap = dev["HasHostMap"].Value<bool>(),
                         IsConnectedToHost = dev["IsConnectedToHost"].Value<bool>(),
+                        RoleID = dev["RoleID"] != null ? dev["RoleID"].Value<int>() : 0
                     };
                     devices.Add(tracker);
                 }
@@ -371,7 +382,7 @@ namespace VIVE_Trackers
                 if (stuck_on_not_checked == 0 && IsClient && HasHostMap)
                 {
                     Log.WarningLine("ok we're stuck on NOT CHECKED, end the map again");
-                    hid.EndScanMap(currentDeviceIndex);
+                    hid.ScanMap(currentDeviceIndex);
                 }
                 stuck_on_not_checked += 1;
             }

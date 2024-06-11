@@ -8,7 +8,13 @@ namespace VIVE_Trackers
             None = 0,
             PoseAndRotation = 2,
             Rotation = 3,
-            PoseFrozen = 4
+            PoseFrozen = 4,
+            PoseAndRotationIdle = 18,
+            RotationIdle = 19,
+            PoseFrozenIdle = 20,
+            PowerOff = -1,
+            Standby = -2,
+            Reset = -3
         }
         public byte frame_idx;
         public byte btns;

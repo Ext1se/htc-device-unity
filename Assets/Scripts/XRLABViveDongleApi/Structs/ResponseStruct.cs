@@ -48,7 +48,7 @@ namespace VIVE_Trackers
                 return new ResponseStruct(0, new byte[0]);
             }
             int c = data[1] - 3;
-            Log.WriteLine(data.Take(data[1]).ToArray().ArrayToString(true));
+            //Log.WriteLine(data.Take(data[1]).ToArray().ArrayToString(true));
             var ret = data.Skip(3).Take(c).ToArray();
             return new ResponseStruct(data[0], ret);
         }

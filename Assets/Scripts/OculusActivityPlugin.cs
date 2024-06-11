@@ -13,6 +13,19 @@ public enum CalibrationStatus
     Hand_down,
     Tracker_on_the_floor
 }
+public enum BodyRole
+{
+    Invalid,
+    Head,
+    RightHand,
+    LeftHand,
+    RightFoot,
+    LeftFoot,
+    RightKnee,
+    LeftKnee,
+    Hip,
+    Chest,
+}
 
 public class OculusActivityPlugin : MonoBehaviour
 {
@@ -21,6 +34,7 @@ public class OculusActivityPlugin : MonoBehaviour
     [SerializeField] Transform rightAnchor;
     [SerializeField] Button startScanBtn;
     [SerializeField] Button stopScanBtn;
+    [SerializeField] Button restartBtn;
     [SerializeField] Transform trackerPref;
     [SerializeField] RectTransform trackersParentUI;
     [SerializeField] TextMeshProUGUI statusText;
@@ -34,8 +48,9 @@ public class OculusActivityPlugin : MonoBehaviour
     Thread dongleLoopThread;
 #endif
 
-    private IEnumerable Start()
+    private IEnumerator Start()
     {
+        UnityDispatcher.Create();
 #if !UNITY_EDITOR && UNITY_ANDROID
         dongleAPI = new AndroidDongleHID(); 
 #else
@@ -46,6 +61,7 @@ public class OculusActivityPlugin : MonoBehaviour
         dongleAPI.OnDisconnected += Trackers_OnDisconnected;
         dongleAPI.OnTrack += Trackers_OnTrack;
         dongleAPI.OnButtonClicked += Trackers_OnButtonClicked;
+        dongleAPI.OnDongleInfo += DongleAPI_OnDongleInfo;
         dongleAPI.Init();
 
         while(!dongleAPI.IsInit)
@@ -66,11 +82,22 @@ public class OculusActivityPlugin : MonoBehaviour
 
         startScanBtn.onClick.AddListener(() => dongleAPI.OpenChannelForScan());
         stopScanBtn.onClick.AddListener(() => dongleAPI.CloseChannelForScan());
+        restartBtn.onClick.AddListener(() => dongleAPI.Restart());
 
 #if UNITY_EDITOR || UNITY_STANDALONE
         dongleLoopThread = new Thread(ThreadDongleLoop);
         dongleLoopThread.Start();
 #endif
+    }
+
+    private void DongleAPI_OnDongleInfo(KeyValuePair<string, string>[] info)
+    {
+        Log.Write("Dongle info:\n");
+        foreach (var item in info)
+        {
+            Log.Write($"{item.Key}:{item.Value}\n");
+        }
+        Log.WriteLine("");
     }
 
 #if UNITY_EDITOR || UNITY_STANDALONE
@@ -138,44 +165,102 @@ public class OculusActivityPlugin : MonoBehaviour
     {
         if (currentController != null)
         {
+#if UNITY_EDITOR || UNITY_STANDALONE
+            UnityDispatcher.Invoke(() =>
+            {
+                var offset = trackers[trackerIndx].position - currentController.position;
+                trackers[trackerIndx].parent.position = -offset;
+            });
+#else
             var offset = trackers[trackerIndx].position - currentController.position;
             trackers[trackerIndx].parent.position = -offset; 
+#endif
         }
+        else
+            dongleAPI.ScanMap(trackerIndx);
     }
 
     private void Trackers_OnTrack(int trackerIndx, TrackData trackData, long time_delta)
     {
-        Log.WriteLine($"{trackerIndx}, {trackData.pos_x}, {trackData.pos_y}, {trackData.pos_z}, {trackData.rot_x}, {trackData.rot_y}, {trackData.rot_z}, {trackData.rot_w}, {(int)trackData.status}");
-
+        //Log.WriteLine($"#{trackerIndx}, {trackData.pos_x}, {trackData.pos_y}, {trackData.pos_z}, {trackData.rot_x}, {trackData.rot_y}, {trackData.rot_z}, {trackData.rot_w}, {(int)trackData.status}");
+#if UNITY_EDITOR || UNITY_STANDALONE
+        UnityDispatcher.Invoke(() =>
+        {
+            InstantiateTracker(trackerIndx, false, TrackData.Status.None);
+            trackers[trackerIndx].localPosition = new Vector3(trackData.pos_x, trackData.pos_y, -trackData.pos_z);
+            trackers[trackerIndx].localRotation = new Quaternion(-trackData.rot_x, -trackData.rot_y, trackData.rot_z, trackData.rot_w);
+        });
+#else
         InstantiateTracker(trackerIndx, false, TrackData.Status.None);
         trackers[trackerIndx].localPosition = new Vector3(trackData.pos_x, trackData.pos_y, -trackData.pos_z);
         trackers[trackerIndx].localRotation = new Quaternion(-trackData.rot_x, -trackData.rot_y, trackData.rot_z, trackData.rot_w);
+#endif
     }
 
     private void Trackers_OnDisconnected(int trackerIndx)
     {
         Log.WriteLine($"Device indx:{trackerIndx} disconnected");
+#if UNITY_EDITOR || UNITY_STANDALONE
+        UnityDispatcher.Invoke(() =>
+        {
+            if (trackers.ContainsKey(trackerIndx))
+            {
+                Destroy(trackers[trackerIndx].parent.gameObject);
+                trackers.Remove(trackerIndx);
+            }
+        });
+#else
         if (trackers.ContainsKey(trackerIndx))
         {
-            Destroy(trackers[trackerIndx].gameObject);
+            Destroy(trackers[trackerIndx].parent.gameObject);
             trackers.Remove(trackerIndx);
         }
+#endif
     }
 
     private void Trackers_OnConnected(int trackerIndx)
     {
         Log.WriteLine($"Device indx:{trackerIndx} connected");
+#if UNITY_EDITOR || UNITY_STANDALONE
+        UnityDispatcher.Invoke(() =>
+        {
+            InstantiateTracker(trackerIndx, false, 0);
+        });
+#else
         InstantiateTracker(trackerIndx, false, 0);
+#endif
     }
 
     private void Trackers_OnTrackerStatus(TrackerDeviceInfo device)
     {
-        Log.WriteLine($"{device.CurrentIndex}, {device.Battery}, {(int)device.status}, {device.IsHost}");
+        Log.WriteLine($"STATUS #{device.CurrentIndex}, Battery:{device.Battery}, Status:{device.status}, IsHost:{device.IsHost}");
+#if UNITY_EDITOR || UNITY_STANDALONE
+        UnityDispatcher.Invoke(() =>
+        {
+            InstantiateTracker(device.CurrentIndex, device.IsHost, device.status);
+        });
+#else
         InstantiateTracker(device.CurrentIndex, device.IsHost, device.status);
+#endif
     }
 
     void InstantiateTracker(int trackerIndx, bool isHost, TrackData.Status status)
     {
+#if UNITY_EDITOR || UNITY_STANDALONE
+        UnityDispatcher.Invoke(() =>
+        {
+            if (!trackers.ContainsKey(trackerIndx))
+            {
+                var parent = new GameObject($"Tracker ({trackerIndx}) parent");
+                parent.transform.position = Vector3.zero;
+                var go = Instantiate(trackerPref, parent.transform);
+                go.name = $"{trackerIndx}";
+                trackers.Add(trackerIndx, go.transform);
+            }
+            else if (status != TrackData.Status.None)
+                trackers[trackerIndx].parent.name = $"{trackerIndx} ({(isHost ? "HOST" : "CLIENT")}) {status}";
+        });
+#else
         if (!trackers.ContainsKey(trackerIndx))
         {
             var parent = new GameObject($"Tracker ({trackerIndx}) parent");
@@ -186,5 +271,6 @@ public class OculusActivityPlugin : MonoBehaviour
         }
         else if(status != TrackData.Status.None)
             trackers[trackerIndx].name = $"{trackerIndx} ({(isHost ? "HOST" : "CLIENT")}) {status}";
+#endif
     }
 }

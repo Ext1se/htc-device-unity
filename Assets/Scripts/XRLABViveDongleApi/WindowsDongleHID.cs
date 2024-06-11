@@ -47,6 +47,10 @@ namespace VIVE_Trackers
             // загружаем ранее привязанные устройства
             InitTrackers(this);
 
+            var dev_host = GetHost();
+            if(dev_host != null)
+                current_host_indx = dev_host.CurrentIndex;
+
             stream.ReadTimeout = int.MaxValue;
         }
 
@@ -67,7 +71,7 @@ namespace VIVE_Trackers
             try
             {
                 var readCount = stream.Read(resp, 0, resp.Length);
-                UnityEngine.Debug.Log(">> " + readCount + " bytes");
+                //UnityEngine.Debug.Log(">> " + readCount + " bytes");
                 if (readCount == 0)
                     return;
                 Array.Resize(ref resp, readCount);

@@ -36,10 +36,12 @@ public class UnityDispatcher
 
     class UnityThreadingDispatcher : MonoBehaviour
     {
+        [SerializeField] int orderMessagesCount;
         internal Queue<System.Action> queue = new Queue<System.Action>();
         void Update()
         {
-            if (queue.Count > 0)
+            orderMessagesCount = queue.Count;
+            while (queue.Count > 0)
             {
                 var action = queue.Dequeue();
                 action?.Invoke();

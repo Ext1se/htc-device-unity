@@ -37,6 +37,7 @@ namespace VIVE_Trackers
         public event DeviceCallback OnButtonClicked;
         public event DeviceCallback OnButtonDown;
         public event DongleCallback OnDongleStatus;
+        public event DongleInfoCallback OnDongleInfo;
         public abstract bool IsInit { get; }
         public abstract void Init();
 
@@ -212,7 +213,7 @@ namespace VIVE_Trackers
                     //ACK_LambdaAskStatus(_dev.CurrentAddress, ConstantsChorusdStatus.KEY_CURRENT_MAP_ID);
                     //ACK_LambdaAskStatus(_dev.CurrentAddress, ConstantsChorusdStatus.KEY_MAP_STATE);
                     ACK_LambdaAskStatus(_dev.CurrentAddress, ConstantsChorusdStatus.KEY_CURRENT_TRACKING_STATE);
-                    if (current_host_indx != _dev.CurrentIndex)
+                    if (_dev.IsHost)
                     {
                         ACK_LambdaAskStatus(_dev.CurrentAddress, ConstantsChorusdStatus.KEY_RECEIVED_HOST_ED);
                         ACK_LambdaAskStatus(_dev.CurrentAddress, ConstantsChorusdStatus.KEY_RECEIVED_HOST_MAP);
@@ -249,6 +250,17 @@ namespace VIVE_Trackers
                 OnTrackerStatus?.Invoke(dev);
                 return;
             }
+            if (data.Length == 4)
+            {
+                Log.WarningLine(data.ArrayToString(true));
+                dev.Update(data[1]);
+                if (dev.IsBtnClicked)
+                    OnButtonClicked?.Invoke(device_idx);
+                if (dev.IsBtnDown)
+                    OnButtonDown?.Invoke(device_idx);
+                OnTrackerStatus?.Invoke(dev);
+                return;
+            }
             if (data.Length != 0x25 && data.Length != 0x27)
             {
                 dev.Update(data[1]);
@@ -258,8 +270,9 @@ namespace VIVE_Trackers
                     OnButtonDown?.Invoke(device_idx);
                 OnTrackerStatus?.Invoke(dev);
                 Log.WarningLine("Неизвестные данные при связанном устройстве. Length:" + data.Length);
+                Log.WarningLine(data.ArrayToString(true));
                 //HEXDump(data);
-                Log.WriteLine($"({MacToStr(deviceAddr)}) indx:{data[0]:d3}, state:{data[1]:X2}, unk1:{data[2]:X2}, unk2:{data[3]:X2}", Log.LogType.Blue);
+                //Log.WriteLine($"({MacToStr(deviceAddr)}) indx:{data[0]:d3}, state:{data[1]:X2}, unk1:{data[2]:X2}, unk2:{data[3]:X2}", Log.LogType.Blue);
                 return;
             }
             
@@ -379,6 +392,11 @@ namespace VIVE_Trackers
                     case ConstantsChorusdAck.ACK_AGN:
 
                         break;
+                    case ConstantsChorusdAck.ACK_ARI:
+                        Log.WarningLine("GET ROLE ID: " + data_real);
+                        if (dev != null)
+                            dev.RoleID = data_real.After(ConstantsChorusdAck.ACK_ARI).ToInt();
+                        break;
                     default:
                         if (dev.Fill(data_real))
                         {
@@ -472,7 +490,7 @@ namespace VIVE_Trackers
                 }
                 else
                 {
-                    Log.WarningLine($"   Got PLAYER UNDEFIINED ACK ({macAddress}): CMD{idx} {args}");
+                    Log.WarningLine($"   Got PLAYER UNDEFIINED ACK ({macAddress}): {data_real}");
                 }
             }
             else
@@ -564,12 +582,16 @@ namespace VIVE_Trackers
                     {
                         Log.WriteLine($".  Got POWER_OFF. ({macAddress})");
                         SendAckTo(device_addr, $"{ConstantsChorusdAck.ACK_STANDBY}");
+                        dev.status = TrackData.Status.PowerOff;
+                        OnTrackerStatus?.Invoke(dev);
                         handle_disconnected(deviceIndx);
                         CloseChannelForScan();
                     }
                     else if (third == ConstantsChorusdAck.ACK_RESET)
                     {
                         Log.WriteLine($".  Got RESET ({macAddress}).");
+                        dev.status = TrackData.Status.Reset;
+                        OnTrackerStatus?.Invoke(dev);
                         handle_disconnected(deviceIndx);
                         CloseChannelForScan();
                     }
@@ -741,12 +763,22 @@ namespace VIVE_Trackers
 
         private void ShowInfo()
         {
-            Console.WriteLine($"PCBID: {get_PCBID()}"); //equestPCBID
-            Console.WriteLine($"SKUID: {get_SKUID()}"); //RequestSKUID
-            Console.WriteLine($"SN: {get_SN()}"); // RequestSN
-            Console.WriteLine($"ShipSN: {get_ShipSN()}"); // RequestShipSN
-            Console.WriteLine($"CapFPC: {get_CapFPC()}"); // RequestCapFPC
-            Console.WriteLine($"ROMVersion: {get_ROMVersion()}"); // QueryROMVersion
+            //Console.WriteLine($"PCBID: {get_PCBID()}"); //equestPCBID
+            //Console.WriteLine($"SKUID: {get_SKUID()}"); //RequestSKUID
+            //Console.WriteLine($"SN: {get_SN()}"); // RequestSN
+            //Console.WriteLine($"ShipSN: {get_ShipSN()}"); // RequestShipSN
+            //Console.WriteLine($"CapFPC: {get_CapFPC()}"); // RequestCapFPC
+            //Console.WriteLine($"ROMVersion: {get_ROMVersion()}"); // QueryROMVersion
+
+            OnDongleInfo?.Invoke(new KeyValuePair<string, string>[]
+                {
+                    new KeyValuePair<string, string>("PCBID", get_PCBID()),
+                    new KeyValuePair<string, string>("SKUID", get_SKUID()),
+                    new KeyValuePair<string, string>("SN", get_SN()),
+                    new KeyValuePair<string, string>("ShipSN", get_ShipSN()),
+                    new KeyValuePair<string, string>("CapFPC", get_CapFPC()),
+                    new KeyValuePair<string, string>("ROMVersion", get_ROMVersion())
+                });
         }
 
         public void PowerOffAll()
@@ -763,17 +795,23 @@ namespace VIVE_Trackers
             SendAckToAll(ConstantsChorusdAck.ACK_RESET);
         }
 
-        public void Info()
+        public void GetDongleInfo()
         {
             ShowInfo();
         }
-        public void TrackerInfo(int indx)
+        public void GetTrackerStatus(int indx)
         {
             var dev = Get(indx);
             if(dev != null)
             {
                 OnTrackerStatus?.Invoke(dev);
             }
+        }
+
+        public void Restart()
+        {
+            //StandByAll();
+            SendAckToAll(ConstantsChorusdAck.ACK_RESET);
         }
 
         void handle_disconnected(int idx)
@@ -804,15 +842,55 @@ namespace VIVE_Trackers
         protected string get_CapFPC() => send_cmd(DCMD_GET_CR_ID, CR_ID_CAP_FPC, false).DecodeToUTF8();
         protected string get_ROMVersion() => send_cmd(DCMD_QUERY_ROM_VERSION, 0x00, false).DecodeToUTF8();
 
-        void IVIVEDongle.EndScanMap(byte indx)
+        void IVIVEDongle.ScanMap(int indx)
         {
             var dev = Get(indx);
-            LambdaEndMap(dev.CurrentAddress);
+            //LambdaEndMap(dev.CurrentAddress);
+            if (dev.IsHost)
+                SendAckTo(dev.CurrentAddress, ConstantsChorusdAck.ACK_START_MAP);
+            else Log.ErrorLine($"[ASK_FOR_MAP] Device:SN-{dev.SerialNumber} INDX-{dev.CurrentIndex} is not host");
         }
-        private void LambdaEndMap(byte[] addr)
+        void IVIVEDongle.EndScanMap(int indx)
         {
-            //Log.WriteLine("END MAP", Log.LogType.Green);
-            SendAckTo(addr, ConstantsChorusdAck.ACK_END_MAP);
+            var dev = Get(indx);
+            //LambdaEndMap(dev.CurrentAddress);
+            if (dev.IsHost)
+                SendAckTo(dev.CurrentAddress, ConstantsChorusdAck.ACK_END_MAP);
+            else Log.ErrorLine($"[ASK_FOR_END_MAP] Device:SN-{dev.SerialNumber} INDX-{dev.CurrentIndex} is not host");
+        }
+        void IVIVEDongle.ExperimentalFileDownload(int indx)
+        {
+            var dev = Get(indx);
+            //LambdaEndMap(dev.CurrentAddress);
+            if (dev.IsHost)
+                SendAckTo(dev.CurrentAddress, ConstantsChorusdAck.ACK_FILE_DOWNLOAD);
+        }
+        //private void LambdaEndMap(byte[] addr)
+        //{
+        //    //Log.WriteLine("END MAP", Log.LogType.Green);
+        //    SendAckTo(addr, ConstantsChorusdAck.ACK_END_MAP);
+        //}
+
+        public bool SetRoleID(string serialNumber, int value)
+        {
+            var dev = Get(serialNumber);
+            if(dev != null)
+            {
+                dev.RoleID = value;
+                dev.SaveToFile();
+                ACK_SetRoleID(dev.CurrentAddress, (ushort)value);
+                return true;
+            }
+            return false;
+        }
+        public int GetRoleID(string serialNumber)
+        {
+            var dev = Get(serialNumber);
+            if (dev != null)
+            {
+                return dev.RoleID;
+            }
+            return -1;
         }
         void SendAckToAll(string ack, bool force = false)
         {
