@@ -8,7 +8,7 @@
     "IsHost": true,
     "HasHostMap": false,
     "IsConnectedToHost": false,
-    "CurrentIndex": 4,
+    "CurrentIndex": 1,
     "RoleID": 0
   },
   {
@@ -20,7 +20,7 @@
     "IsHost": false,
     "HasHostMap": false,
     "IsConnectedToHost": false,
-    "CurrentIndex": 2,
-    "RoleID": 3
+    "CurrentIndex": 4,
+    "RoleID": 0
   }
 ]
