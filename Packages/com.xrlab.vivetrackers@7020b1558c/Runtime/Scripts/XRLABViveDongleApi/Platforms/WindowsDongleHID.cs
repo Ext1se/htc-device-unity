@@ -48,8 +48,10 @@ namespace VIVE_Trackers
             InitTrackers(this);
 
             var dev_host = GetHost();
-            if(dev_host != null)
+            if (dev_host != null)
+            {
                 current_host_indx = dev_host.CurrentIndex;
+            }
 
             stream.ReadTimeout = int.MaxValue;
         }

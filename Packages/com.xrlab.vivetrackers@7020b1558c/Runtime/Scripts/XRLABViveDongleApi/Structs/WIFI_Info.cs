@@ -13,6 +13,13 @@ namespace VIVE_Trackers
         public string country;
         public int host_freq;// = 5240;
 
+        static string path;
+
+        static WIFI_Info()
+        {
+            path = Application.persistentDataPath;
+        }
+
         static WIFI_Info Default => new WIFI_Info { host_ssid = "test_5G", host_passwd = "testtest", host_freq = 5240, country = "US" };
 
         public bool IsValid => !string.IsNullOrEmpty(country) && !string.IsNullOrEmpty(host_ssid) && !string.IsNullOrEmpty(host_passwd) && host_freq != 0;
@@ -20,9 +27,9 @@ namespace VIVE_Trackers
         internal static WIFI_Info Load()
         {
 #if UNITY_ANDROID
-            if (File.Exists(Path.Combine(Application.persistentDataPath, "wifi_info.json")))
+            if (File.Exists(Path.Combine(path, "wifi_info.json")))
             {
-                var json = File.ReadAllText(Path.Combine(Application.persistentDataPath, "wifi_info.json"));
+                var json = File.ReadAllText(Path.Combine(path, "wifi_info.json"));
                 return JsonConvert.DeserializeObject<WIFI_Info>(json); 
             }
 #else
@@ -38,7 +45,7 @@ namespace VIVE_Trackers
         {
             var json = JsonConvert.SerializeObject(this);
 #if UNITY_ANDROID
-            File.WriteAllText(Path.Combine(Application.persistentDataPath, "wifi_info.json"), json); 
+            File.WriteAllText(Path.Combine(path, "wifi_info.json"), json); 
 #else
             File.WriteAllText("wifi_info.json", json);
 #endif

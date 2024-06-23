@@ -27,6 +27,7 @@
         public const ushort PAIRSTATE_4 = 0x0004;
         public const ushort PAIR_STATE_PAIRED = 0x0008;
         public const ushort PAIRSTATE_10 = 0x0010;
+        public const int PAIR_STATE_UNPAIRED = 0x01;
 
         // SetStatus/GetStatus
         public const byte HDCC_BATTERY = 0x0;

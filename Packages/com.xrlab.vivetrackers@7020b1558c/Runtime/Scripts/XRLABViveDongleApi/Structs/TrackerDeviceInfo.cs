@@ -130,10 +130,11 @@ namespace VIVE_Trackers
 
         public void SaveToFile()
         {
+            if (CurrentIndex == -1) return;
 #if !UNITY_EDITOR && UNITY_ANDROID
             var filename = Path.Combine(UnityEngine.Application.persistentDataPath, "trackers.json");
 #else
-            var filename = "trackers.json";
+                var filename = "trackers.json";
 #endif
             JArray array;
             if (File.Exists(filename))

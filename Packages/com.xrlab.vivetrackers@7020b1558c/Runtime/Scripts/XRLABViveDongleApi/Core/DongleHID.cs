@@ -21,7 +21,22 @@ namespace VIVE_Trackers
         //public readonly TrackerDeviceInfo[] Devices = new TrackerDeviceInfo[MAX_TRACKER_COUNT];
 
         protected long last_host_map_ask_ms;
-        protected int current_host_indx = -1;
+        int _current_host_indx = -1;
+        protected int current_host_indx 
+        { 
+            get => _current_host_indx;
+            set
+            {
+                if(_current_host_indx != value)
+                {
+                    if(_current_host_indx != -1 && value == -1)
+                        Log.dongleAPILogger?.WarningLine("DAMMM!!! And the host never showed up, then we recreate host as new tracker later");
+                    else if (_current_host_indx != -1 && value != -1)
+                        Log.dongleAPILogger?.WarningLine("DAMMM OK!!! And the host never showed up, then we recreate host as new tracker as " + value);
+                    _current_host_indx = value;
+                }
+            }
+        }
         protected int tick_periodic = 0;
         protected PairState[] pair_state = new PairState[MAX_TRACKER_COUNT];
         protected WIFI_Info wifi_info;
@@ -159,9 +174,10 @@ namespace VIVE_Trackers
             var pairStr = Array.ConvertAll(pair_state, ps => Enum.IsDefined(typeof(PairState), ps) ? ps.ToString() : $"{(uint)ps:X}");
             Log.dongleAPILogger?.WriteLine($"cmd:{status.ArrayToString(true)}, {pairStr[0]}, {pairStr[1]}, {pairStr[2]}, {pairStr[3]}, {pairStr[4]}");
 
-            // Fallback for disconnects
+            // Fallback for disconnects if tracker isUnpaired full
             if (current_host_indx >= 0)
-                if (((ushort)pair_state[current_host_indx] & ConstantsChorusdStatus.PAIR_STATE_PAIRED) == 0)
+                //if (((ushort)pair_state[current_host_indx] & ConstantsChorusdStatus.PAIR_STATE_PAIRED) == 0)
+                if (((ushort)pair_state[current_host_indx] & ConstantsChorusdStatus.PAIR_STATE_UNPAIRED) == ConstantsChorusdStatus.PAIR_STATE_UNPAIRED)
                     handle_disconnected(current_host_indx);
 
 
@@ -361,17 +377,7 @@ namespace VIVE_Trackers
                 {
                     case ConstantsChorusdAck.ACK_AZZ:
                         {
-                            dev.IsHost = current_host_indx == deviceIndx;
-                            var mode = (current_host_indx == deviceIndx ? 2 : 1);
-                            var track_mode = (current_host_indx == deviceIndx ? 21 : 20);
-                            SendAckTo(device_addr, ConstantsChorusdAck.ACK_ARPERSIST_VBP);
-                            SendAckTo(device_addr, ConstantsChorusdAck.ACK_ARPENROLL_UID);
-                            SendAckTo(device_addr, $"{ConstantsChorusdAck.ACK_FILE_WRITE}{mode}");
-                            SendAckTo(device_addr, $"{ConstantsChorusdAck.ACK_TRACKING_MODE}{track_mode}");
-                            if (!dev.IsHost)
-                            {
-                                SendAckTo(device_addr, $"{ConstantsChorusdAck.ACK_LAMBDA_COMMAND}{ConstantsChorusdStatus.RESET_MAP}");
-                            }
+                            AnswerTo_ACK_AZZ(dev);
                         }
                         break;
                     case ConstantsChorusdAck.ACK_AGN:
@@ -637,6 +643,24 @@ namespace VIVE_Trackers
                         }
                     }
                 }
+            }
+        }
+        /// <summary>
+        /// Ответ на ACK_AZZ
+        /// </summary>
+        /// <param name="dev"></param>
+        private void AnswerTo_ACK_AZZ(TrackerDeviceInfo dev)
+        {
+            dev.IsHost = current_host_indx == dev.CurrentIndex;
+            var mode = (current_host_indx == dev.CurrentIndex ? 2 : 1);
+            var track_mode = (current_host_indx == dev.CurrentIndex ? 21 : 20);
+            SendAckTo(dev.CurrentAddress, ConstantsChorusdAck.ACK_ARPERSIST_VBP);
+            SendAckTo(dev.CurrentAddress, ConstantsChorusdAck.ACK_ARPENROLL_UID);
+            SendAckTo(dev.CurrentAddress, $"{ConstantsChorusdAck.ACK_FILE_WRITE}{mode}");
+            SendAckTo(dev.CurrentAddress, $"{ConstantsChorusdAck.ACK_TRACKING_MODE}{track_mode}");
+            if (!dev.IsHost)
+            {
+                SendAckTo(dev.CurrentAddress, $"{ConstantsChorusdAck.ACK_LAMBDA_COMMAND}{ConstantsChorusdStatus.RESET_MAP}");
             }
         }
 
