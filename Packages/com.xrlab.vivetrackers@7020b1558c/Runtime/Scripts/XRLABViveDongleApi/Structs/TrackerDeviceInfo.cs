@@ -49,15 +49,6 @@ namespace VIVE_Trackers
                 else currentIndex = MacToIdx(currentAddress);
             }
         }
-        public string CurrendAddressStr
-        {
-            get
-            {
-                if (currendAddressStr == null && CurrentAddress != null)
-                    currendAddressStr = MacToStr(CurrentAddress);
-                return currendAddressStr;
-            }
-        }
 
         public bool BumpMapOnce { get => bump_map_once; set => bump_map_once = value; }
         public long DeltaTime => TotalMilis - lastTimeUpdate;
@@ -73,12 +64,12 @@ namespace VIVE_Trackers
         public bool IsInit =>
             !string.IsNullOrEmpty(SerialNumber) && !string.IsNullOrEmpty(ShipSerialNumber) &&
             !string.IsNullOrEmpty(SKU_ID) && !string.IsNullOrEmpty(PCB_ID) &&
-            !string.IsNullOrEmpty(FirmwareVersion);
+            !string.IsNullOrEmpty(FirmwareVersion) && MapStatus == MapStatus.MAP_REBUILT && status != Status.None;
 
         public int FrameIndex { get; internal set; }
         public byte Battery { get; internal set; }
         public Status status { get; internal set; }
-
+        public MapStatus MapStatus { get; set; }
 
         public TrackerDeviceInfo(IVIVEDongle hid)
         {
@@ -258,7 +249,7 @@ namespace VIVE_Trackers
                 var dev = Get(i);
                 if (dev != null)
                 {
-                    if (pair_state[i] == PairState.UnpairedNoInfo || pair_state[i] == PairState.ReadyForScan)
+                    if (pair_state[i] == PairState.Empty || pair_state[i] == PairState.ReadyForScan)
                     {
                         dev.CurrentAddress = null;
                         Devices[i] = null;
@@ -327,7 +318,7 @@ namespace VIVE_Trackers
             }
         }
 
-        internal void UpdateMapState(byte currentDeviceIndex, int state)
+        internal void UpdateMapState(int state)
         {
             //tracker_map_state = state;
             if (stuck_on_static > 7)
@@ -383,7 +374,7 @@ namespace VIVE_Trackers
                 if (stuck_on_not_checked == 0 && IsClient && HasHostMap)
                 {
                     Log.dongleAPILogger?.WarningLine("ok we're stuck on NOT CHECKED, end the map again");
-                    hid.ScanMap(currentDeviceIndex);
+                    hid.ReMap(currentIndex);
                 }
                 stuck_on_not_checked += 1;
             }

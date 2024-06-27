@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using static VIVE_Trackers.TrackerDeviceInfo;
 
 namespace VIVE_Trackers
@@ -41,6 +42,17 @@ namespace VIVE_Trackers
                 Log.dongleAPILogger?.ErrorLine("Can't open device stream!");
                 return;
             }
+
+            //var desc = device_hid1.GetReportDescriptor().DeviceItems;
+            //Log.dongleAPILogger?.Write("Dongle info\n");
+            //Log.dongleAPILogger?.Write($"Name: {device_hid1.GetFriendlyName()}\n");
+            //Log.dongleAPILogger?.Write($"SN: {device_hid1.GetSerialNumber()}\n");
+            //Log.dongleAPILogger?.Write($"Manufacture: {device_hid1.GetManufacturer()}\n");
+            //Log.dongleAPILogger?.Write($"Product: {device_hid1.GetProductName()}\n");
+            //Log.dongleAPILogger?.Write($"Release number: {device_hid1.ReleaseNumber}\n");
+            //Log.dongleAPILogger?.Write($"Serial ports: {string.Join(",", device_hid1.GetSerialPorts())}\n");
+            //Log.dongleAPILogger?.WriteLine("");
+
             sw = Stopwatch.StartNew();
             last_host_map_ask_ms = sw.ElapsedMilliseconds;
 
@@ -106,17 +118,17 @@ namespace VIVE_Trackers
             }
         }
 
-        protected override byte[] send_cmd(byte cmd_id, byte[] data, bool showLog, bool waitAnswer = false)
+        protected async override Task<byte[]> send_cmd(byte cmd_id, byte[] data, bool showLog, bool waitAnswer = false)
         {
-            return send_cmd(stream, cmd_id, data, showLog, waitAnswer);
+            return await send_cmd(stream, cmd_id, data, showLog, waitAnswer);
         }
-        protected override byte[] send_cmd_raw(byte[] data, bool showLog, bool waitAnswer = false)
+        protected async override Task<byte[]> send_cmd_raw(byte[] data, bool showLog, bool waitAnswer = false)
         {
-            return send_cmd_raw(stream, data, showLog, waitAnswer);
+            return await send_cmd_raw(stream, data, showLog, waitAnswer);
         }
 
-        static byte[] send_cmd(HidStream stream, byte cmd_id, byte data, bool showLog, bool waitAnswer = false) => send_cmd(stream, cmd_id, new byte[] { data }, showLog, waitAnswer);
-        static byte[] send_cmd(HidStream stream, byte cmd_id, byte[] data, bool showLog, bool waitAnswer = false)
+        async static Task<byte[]> send_cmd(HidStream stream, byte cmd_id, byte data, bool showLog, bool waitAnswer = false) => await send_cmd(stream, cmd_id, new byte[] { data }, showLog, waitAnswer);
+        async static Task<byte[]> send_cmd(HidStream stream, byte cmd_id, byte[] data, bool showLog, bool waitAnswer = false)
         {
             if (OnlyListenerMode)
             {
@@ -143,7 +155,9 @@ namespace VIVE_Trackers
                     }
                     return result;
                 }
-                for (int i = 0; i < 10; i++)
+                //for (int i = 0; i < 10; i++)
+                int counter = 0;
+                while (true)
                 {
                     var resp = new byte[BUFFER_SIZE];
                     stream.GetFeature(resp);
@@ -151,14 +165,26 @@ namespace VIVE_Trackers
                     if (respData.err != 0)
                     {
                         Log.dongleAPILogger?.ErrorLine($"Got error response: {respData.err}");
-                        continue; //return new byte[0];
+                        //continue; //return new byte[0];
+                        if (counter++ < 10)
+                            await Task.Yield();
+                        else
+                            break;
                     }
-                    if (respData.cmd_id != cmd_id)
+                    else if (respData.cmd_id != cmd_id)
                     {
                         Log.dongleAPILogger?.ErrorLine($"Got error response (wrong commandID): {cmd_id}");
-                        continue; //return new byte[0];
+                        //continue; //return new byte[0];
+                        if (counter++ < 10)
+                            await Task.Yield();
+                        else
+                            break;
                     }
-                    result = respData.ret;
+                    else
+                    {
+                        result = respData.ret;
+                        break;
+                    }
                 }
             }
             catch (Exception ex)
@@ -173,7 +199,7 @@ namespace VIVE_Trackers
             }
             return result;
         }
-        static byte[] send_cmd_raw(HidStream stream, byte[] data, bool showLog, bool waitAnswer = false)
+        async static Task<byte[]> send_cmd_raw(HidStream stream, byte[] data, bool showLog, bool waitAnswer = false)
         {
             if (OnlyListenerMode)
             {
@@ -190,7 +216,7 @@ namespace VIVE_Trackers
             {
                 stream.SetFeature(output.ToArray());
                 if (!waitAnswer) return result;
-                for (int i = 0; i < 10; i++)
+                while(true)
                 {
                     var resp = new byte[BUFFER_SIZE];
                     stream.GetFeature(resp);
@@ -198,14 +224,20 @@ namespace VIVE_Trackers
                     if (respData.err != 0)
                     {
                         Log.dongleAPILogger?.ErrorLine($"Got error response: {respData.err}");
-                        continue; //return new byte[0];
+                        //continue; //return new byte[0];
+                        await Task.Yield();
                     }
-                    if (respData.cmd_id != data[0])
+                    else if (respData.cmd_id != data[0])
                     {
                         Log.dongleAPILogger?.ErrorLine($"Got error response (wrong commandID): {data[0]}");
-                        continue; //return new byte[0];
+                        //continue; //return new byte[0];
+                        await Task.Yield();
                     }
-                    result = respData.ret;
+                    else
+                    {
+                        result = respData.ret;
+                        break;
+                    }
                 }
             }
             catch (Exception ex)
@@ -219,6 +251,27 @@ namespace VIVE_Trackers
                 Log.dongleAPILogger?.WarningLine($"[SEND RAW] <DataReq:{data.ArrayToString(true)}> DataResp:{BitConverter.ToString(result)} ... ({str})");
             }
             return result;
+        }
+
+        protected override void ShowInfo()
+        {
+            Log.dongleAPILogger?.Write("Dongle info\n");
+            Log.dongleAPILogger?.Write($"Name: {device_hid1.GetFriendlyName()}\n");
+            Log.dongleAPILogger?.Write($"SN: {device_hid1.GetSerialNumber()}\n");
+            Log.dongleAPILogger?.Write($"Manufacture: {device_hid1.GetManufacturer()}\n");
+            Log.dongleAPILogger?.Write($"Product: {device_hid1.GetProductName()}\n");
+            Log.dongleAPILogger?.Write($"Release number: {device_hid1.ReleaseNumber}\n");
+            Log.dongleAPILogger?.Write($"Serial ports: {string.Join(",", device_hid1.GetSerialPorts())}\n");
+            Log.dongleAPILogger?.WriteLine("");
+
+            RaiseDongleInfoEvent(new KeyValuePair<string, string>[] 
+            {
+                new KeyValuePair<string, string>("Name", device_hid1.GetFriendlyName()),
+                new KeyValuePair<string, string>("SN", device_hid1.GetSerialNumber()),
+                new KeyValuePair<string, string>("Manufacture", device_hid1.GetManufacturer()),
+                new KeyValuePair<string, string>("Product", device_hid1.GetProductName()),
+                new KeyValuePair<string, string>("Release number", device_hid1.ReleaseNumber.ToString())
+            });
         }
 
         public override void Dispose()

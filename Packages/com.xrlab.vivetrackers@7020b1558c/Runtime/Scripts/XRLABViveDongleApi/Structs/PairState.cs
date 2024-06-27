@@ -18,7 +18,9 @@
         ReadyForScan = 0x04000003,  // unpaired, pairing info present?,
         PairedIdle = 0x03000005,  // приложение прекратило работу, но девайс привязан
         PowerOff = 0x0A000005,  // приложение работает, деваайс находится в режиме привязки
+        [System.Obsolete("UnpairedNoInfo is obsolete, use Empty parameter")]
         UnpairedNoInfo = 0x01000003,  // unpaired, pairing info not present?
+        Empty = 0x01000003,
         Paired0 = 0x320FC008, // paired
         Paired1 = 0x320FF808, // paired
         Paired2 = 0x320FA808, // paired

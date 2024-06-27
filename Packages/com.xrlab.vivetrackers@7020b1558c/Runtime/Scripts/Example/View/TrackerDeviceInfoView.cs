@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -13,11 +14,15 @@ public class TrackerDeviceInfoView : MonoBehaviour
     [SerializeField] Image borderImg;
     [SerializeField] Image batteryImg;
     [SerializeField] Image buttonHightLightImg;
-    [SerializeField] TextMeshProUGUI statusText;
+    [SerializeField] TextMeshProUGUI trackerStatusText;
+    [SerializeField] TextMeshProUGUI dongleStatusText;
     [SerializeField] TMP_Dropdown roleIDDD;
     [SerializeField] Button centralBtn;
     [SerializeField] Button unpairBtn;
     [SerializeField] Button powerBtn;
+    [SerializeField] Button remapBtn;
+
+    static System.Enum dropDownRoles;
 
     OculusActivityPlugin plugin;
     TrackerDeviceInfo deviceInfo;
@@ -53,6 +58,10 @@ public class TrackerDeviceInfoView : MonoBehaviour
     [SerializeField] TMP_InputField ack_command;
     [SerializeField] Button sendAckBtn;
 
+    public static void AddRoleEnum(System.Enum roles)
+    {
+        dropDownRoles = roles;
+    }
 
     private void Start()
     {
@@ -62,11 +71,25 @@ public class TrackerDeviceInfoView : MonoBehaviour
         bgFromColor = bgImg.color;
         lightFromColor = bgLight.color;
 
+        if (dropDownRoles != null)
+        {
+            List<string> list = new List<string>(System.Enum.GetNames(dropDownRoles.GetType()));
+            roleIDDD.ClearOptions();
+            roleIDDD.AddOptions(list); 
+        }
+
         roleIDDD?.onValueChanged.AddListener(OnRoleChange);
         centralBtn?.onClick.AddListener(OnCentralBtnClick);
         unpairBtn?.onClick.AddListener(OnUnpairBtnClick);
         powerBtn?.onClick.AddListener(OnPowerBtnClick);
         sendAckBtn?.onClick.AddListener(SendACK);
+        remapBtn.onClick.AddListener(OnRemap);
+    }
+
+    private void OnRemap()
+    {
+        currentIndex = transform.GetSiblingIndex();
+        dongleAPI.ReMap(currentIndex);
     }
 
     private void OnPowerBtnClick()
@@ -151,7 +174,7 @@ public class TrackerDeviceInfoView : MonoBehaviour
                 case PairState.PowerOff:
                     borderImg.color = Color.green;
                     break;
-                case PairState.UnpairedNoInfo:
+                case PairState.Empty:
                     borderImg.color = Color.black;
                     break;
                 case PairState.Paired0:
@@ -172,9 +195,10 @@ public class TrackerDeviceInfoView : MonoBehaviour
                 default:
                     break;
             }
-            if (!isConnected)
-                statusText.text = state.ToString();
-            else statusText.text = data.status.ToString();
+            //if (!isConnected)
+            //    statusText.text = state.ToString();
+            //else statusText.text = data.status.ToString();
+            dongleStatusText.text = state.ToString();
         });
     }
 
@@ -194,7 +218,7 @@ public class TrackerDeviceInfoView : MonoBehaviour
                 batteryImg.color = Color.Lerp(Color.red, Color.green, battr);
                 isConnected = true;
                 isHost = device.IsHost;
-                statusText.text = deviceInfo.status.ToString();
+                trackerStatusText.text = deviceInfo.status.ToString();
             });
         }
     }
@@ -211,6 +235,7 @@ public class TrackerDeviceInfoView : MonoBehaviour
                 if (ack_canvasGroup != null) ack_canvasGroup.interactable = false;
                 batteryImg.fillAmount = 0;
                 isConnected = false;
+                trackerStatusText.text = "wait connection...";
             });
         }
     }

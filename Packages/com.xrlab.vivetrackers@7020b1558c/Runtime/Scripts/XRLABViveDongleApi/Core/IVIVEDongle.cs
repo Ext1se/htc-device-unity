@@ -56,11 +56,11 @@ namespace VIVE_Trackers
         /// <returns>Return roleid of device if founded, otherwise -1</returns>
         int GetRoleID(string serialNumber);
         void Blink(int currentDeviceIndex);
-        /// <summary>
-        /// Restart ascan map of tracker
-        /// </summary>
-        /// <param name="currentDeviceIndex"></param>
-        void ScanMap(int currentDeviceIndex);
+        ///// <summary>
+        ///// Restart ascan map of tracker
+        ///// </summary>
+        ///// <param name="currentDeviceIndex"></param>
+        //void ScanMap(int currentDeviceIndex);
         void EndScanMap(int currentDeviceIndex);
         /// <summary>
         /// Recreate map for tracker

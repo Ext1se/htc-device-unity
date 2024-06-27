@@ -159,7 +159,7 @@ public class OculusActivityPlugin : MonoBehaviour
 
     private void Trackers_OnButtonClicked(int trackerIndx)
     {
-        dongleAPI.ScanMap(trackerIndx);
+        //dongleAPI.ScanMap(trackerIndx);
     }
 
     private void Trackers_OnTrack(int trackerIndx, TrackData trackData, long time_delta)
@@ -259,5 +259,20 @@ public class OculusActivityPlugin : MonoBehaviour
         else if(status != TrackData.Status.None)
             trackers[trackerIndx].name = $"{trackerIndx} ({(isHost ? "HOST" : "CLIENT")}) {status}";
 #endif
+    }
+
+    public void GetDongleInfo()
+    {
+        dongleAPI.OnDongleInfo += DongleAPI_OnDongleInfo1;
+        dongleAPI.GetDongleInfo();
+    }
+
+    private void DongleAPI_OnDongleInfo1(KeyValuePair<string, string>[] info)
+    {
+        Debug.Log("==DongleAPI_OnDongleInfo1==");
+        foreach (var item in info)
+        {
+            Debug.Log(item.Key + ":" + item.Value);
+        }
     }
 }

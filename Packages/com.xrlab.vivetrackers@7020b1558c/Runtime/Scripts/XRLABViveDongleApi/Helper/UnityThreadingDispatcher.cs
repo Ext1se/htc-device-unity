@@ -8,42 +8,59 @@ public class UnityDispatcher
     {
         get
         {
-            if(_unityThreadingDispatcher == null)
-            {
-                var go = new GameObject("UnityThreadingDispatcher");
-                _unityThreadingDispatcher = go.AddComponent<UnityThreadingDispatcher>();
-            }
             return _unityThreadingDispatcher;
         }
     }
 
-    public static void Create()
+
+    public static void Create(bool dontDestroyOnLoad = true)
     {
         if (_unityThreadingDispatcher == null)
         {
             var go = new GameObject("UnityThreadingDispatcher");
             _unityThreadingDispatcher = go.AddComponent<UnityThreadingDispatcher>();
+            if (dontDestroyOnLoad)
+                UnityThreadingDispatcher.DontDestroyOnLoad(go);
+        }
+    }
+
+    public static void Destroy()
+    {
+        if (_unityThreadingDispatcher != null)
+        {
+            Object.Destroy(_unityThreadingDispatcher.gameObject);
+            _unityThreadingDispatcher = null;
         }
     }
 
     public static void Invoke(System.Action action)
     {
         if (action != null)
-            unityThreadingDispatcher.queue.Enqueue(action);
+            unityThreadingDispatcher.AddAction(action);
     }
 
     class UnityThreadingDispatcher : MonoBehaviour
     {
         [SerializeField] int orderMessagesCount;
-        internal Queue<System.Action> queue = new Queue<System.Action>();
+        Queue<System.Action> queue = new Queue<System.Action>();
+        static object queue_lock = new object();
         void Update()
         {
-            orderMessagesCount = queue.Count;
-            while (queue.Count > 0)
+            lock (queue_lock)
             {
-                var action = queue.Dequeue();
-                action?.Invoke();
+                orderMessagesCount = queue.Count;
+                while (queue.Count > 0)
+                {
+                    var action = queue.Dequeue();
+                    action?.Invoke();
+                }
             }
+        }
+
+        internal void AddAction(System.Action action)
+        {
+            lock (queue_lock)
+                queue.Enqueue(action);
         }
     }
 }

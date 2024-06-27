@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading.Tasks;
 using SystemHalf;
 using VIVE_Trackers.Constants;
 using static VIVE_Trackers.Constants.ConstantsChorusdDongle;
@@ -55,6 +56,7 @@ namespace VIVE_Trackers
         public event DongleInfoCallback OnDongleInfo;
         public abstract bool IsInit { get; }
         protected Dictionary<string, System.Action<string>> registeredActions = new Dictionary<string, System.Action<string>>();
+        protected Dictionary<string, System.Action<string>> delayedTickActions = new Dictionary<string, System.Action<string>>();
         public abstract void Init();
 
         void IVIVEDongle.DoLoop()
@@ -78,8 +80,12 @@ namespace VIVE_Trackers
                         var is_unpair = respData.ret[1] == 1; // 0x1, id?
                         var paired_mac = respData.ret.Skip(3).ToArray();
                         var device_idx = MacToIdx(paired_mac);
-                        var paired_mac_str = MacToStr(paired_mac);
-                        Log.dongleAPILogger?.WriteLine((is_unpair ? "Unpaired " : "Paired ") + $"{paired_mac_str}, status:{unk:X}");
+
+                        if (Log.dongleAPILogger != null)
+                        {
+                            var paired_mac_str = MacToStr(paired_mac);
+                            Log.dongleAPILogger.WriteLine((is_unpair ? "Unpaired " : "Paired ") + $"{paired_mac_str}, status:{unk:X}"); 
+                        }
 
                         if (is_unpair)
                         {
@@ -165,20 +171,29 @@ namespace VIVE_Trackers
 
         protected virtual void ParseDongleStatus(byte[] data)
         {
-            Log.dongleAPILogger?.WriteLine("PARSE_TRACKER_STATUS");
+            //Log.dongleAPILogger?.WriteLine("PARSE_TRACKER_STATUS");
             var res = StructConverter.Unpack("<6BLLLLL", data);
             var status = (byte[])res[0];
             pair_state = new PairState[MAX_TRACKER_COUNT] { (PairState)(uint)res[1], (PairState)(uint)res[2], (PairState)(uint)res[3], (PairState)(uint)res[4], (PairState)(uint)res[5] };
             UpdateStatus(pair_state);
-            
-            var pairStr = Array.ConvertAll(pair_state, ps => Enum.IsDefined(typeof(PairState), ps) ? ps.ToString() : $"{(uint)ps:X}");
-            Log.dongleAPILogger?.WriteLine($"cmd:{status.ArrayToString(true)}, {pairStr[0]}, {pairStr[1]}, {pairStr[2]}, {pairStr[3]}, {pairStr[4]}");
+
+            if (Log.dongleAPILogger != null)
+            {
+                var pairStr = Array.ConvertAll(pair_state, ps => Enum.IsDefined(typeof(PairState), ps) ? ps.ToString() : $"{(uint)ps:X}");
+                Log.dongleAPILogger?.WriteLine($"cmd:{status.ArrayToString(true)}, {pairStr[0]}, {pairStr[1]}, {pairStr[2]}, {pairStr[3]}, {pairStr[4]}"); 
+            }
 
             // Fallback for disconnects if tracker isUnpaired full
             if (current_host_indx >= 0)
+            {
                 //if (((ushort)pair_state[current_host_indx] & ConstantsChorusdStatus.PAIR_STATE_PAIRED) == 0)
                 if (((ushort)pair_state[current_host_indx] & ConstantsChorusdStatus.PAIR_STATE_UNPAIRED) == ConstantsChorusdStatus.PAIR_STATE_UNPAIRED)
-                    handle_disconnected(current_host_indx);
+                {
+                    var dev = Get(current_host_indx);
+                    if (dev != null && dev.IsInit)
+                        handle_disconnected(current_host_indx);
+                }
+            }
 
 
             OnDongleStatus?.Invoke(pair_state);
@@ -205,7 +220,6 @@ namespace VIVE_Trackers
                 var data_id = incoming.data_raw[0];
                 var data_real = incoming.data_raw.Skip(1).ToArray();
                 Log.dongleAPILogger?.WriteLine($"   [PARSE_TRACKER_INCOMING (NOT IMPLEMENTED!!!!)] data_id:{data_id:X}");
-                HEXDump(data_real);
             }
             catch (Exception ex)
             {
@@ -226,6 +240,7 @@ namespace VIVE_Trackers
                     if (_dev == null || _dev.CurrentIndex == -1) continue;
                     OnTrackerStatus?.Invoke(_dev);
                     if (_dev.CurrentAddress == null) continue;
+
                     //ACK_LambdaAskStatus(_dev.CurrentAddress, ConstantsChorusdStatus.KEY_TRANSMISSION_READY);
                     //ACK_LambdaAskStatus(_dev.CurrentAddress, ConstantsChorusdStatus.KEY_CURRENT_MAP_ID);
                     //ACK_LambdaAskStatus(_dev.CurrentAddress, ConstantsChorusdStatus.KEY_MAP_STATE);
@@ -236,6 +251,12 @@ namespace VIVE_Trackers
                     //    ACK_LambdaAskStatus(_dev.CurrentAddress, ConstantsChorusdStatus.KEY_RECEIVED_HOST_MAP);
                     //}
                 }
+
+                foreach (var item in delayedTickActions)
+                {
+                    item.Value?.Invoke(item.Key);
+                }
+                delayedTickActions.Clear();
                 tick_periodic = 0;
             }
         }
@@ -375,11 +396,6 @@ namespace VIVE_Trackers
 
                 switch (data_real_ss)
                 {
-                    case ConstantsChorusdAck.ACK_AZZ:
-                        {
-                            AnswerTo_ACK_AZZ(dev);
-                        }
-                        break;
                     case ConstantsChorusdAck.ACK_AGN:
 
                         break;
@@ -387,6 +403,11 @@ namespace VIVE_Trackers
                         Log.dongleAPILogger?.WarningLine("GET ROLE ID: " + data_real);
                         if (dev != null)
                             dev.RoleID = data_real.After(ConstantsChorusdAck.ACK_ARI).ToInt();
+                        break;
+                    case ConstantsChorusdAck.ACK_AZZ:
+                        {
+                            AnswerTo_ACK_AZZ(dev);
+                        }
                         break;
                     default:
                         if (dev.Fill(data_real))
@@ -462,7 +483,7 @@ namespace VIVE_Trackers
                     {
                         addendum = $"({ConstantsChorusdStatus.MapStatusToStr(state)})";
 
-                        handle_map_state(deviceIndx, state);
+                        dev.UpdateMapState(state);
                     }
                     else if (key_id == ConstantsChorusdStatus.KEY_CURRENT_TRACKING_STATE)
                         addendum = $"({ConstantsChorusdStatus.PoseStatusToStr(state)})";
@@ -533,47 +554,56 @@ namespace VIVE_Trackers
                         wifi_info.host_ssid = parts[0];
                         wifi_info.host_passwd = parts[1];
                         wifi_info.host_freq = parts[2].ToInt();
-                        wifi_info.Save(); 
+                        wifi_info.Save();
                     }
                     else
+                    {
                         Log.dongleAPILogger?.WarningLine($"Skip save WIFI data");
+                        if(wifi_info.IsValid)
+                        {
+                            SendWIFIToTracker(device_addr);
+                        }
+                    }
                 }
-                else if (second == ConstantsChorusdAck.ACK_WIFI_SSID_PASS)
+                else if (second == ConstantsChorusdAck.ACK_WIFI_SETUP)
                 {
-                    Log.dongleAPILogger?.WriteLine($"   Got WIFI_SSID ACK ({macAddress})");
-                    Log.dongleAPILogger?.WarningLine($"=====Sync wifi with other trackers");
-
-                    SendWIFIConnection(device_addr, deviceIndx);
+                    if (!dev.IsConnectedToHost && !dev.IsHost && wifi_info.IsValid)
+                    {
+                        Log.dongleAPILogger?.WriteLine($"   Got WIFI_SSID ACK ({macAddress})");
+                        Log.dongleAPILogger?.WarningLine($"=====Sync wifi with other trackers");
+                        SendWIFIConnection(dev); 
+                    }
                 }
                 else if (second == ConstantsChorusdAck.ACK_WIFI_CONNECT)
                 {
                     var ret = data_real.ToInt();
-                    Log.dongleAPILogger?.BlueLine($"   Got WIFI_CONNECT ACK ({macAddress}): {ret}");
+                    Log.dongleAPILogger?.Warning($"   Got WIFI_CONNECT ACK ({macAddress}): ");
+                    if (ret == 0)
+                        Log.dongleAPILogger?.BlueLine(ret);
+                    else
+                        Log.dongleAPILogger?.GreenLine(ret);
                     dev.IsConnectedToHost = (ret > 0);
-                    //if (!dev.IsConnectedToHost && !dev.IsHost && wifi_info.IsValid)
-                    //{
-                    //}
+                    if (!dev.IsConnectedToHost && !dev.IsHost && wifi_info.IsValid)
+                    {
+                        SendWIFIConnection(dev);
+                    }
                 }
                 else if (second == ConstantsChorusdAck.ACK_WIFI_ERROR)
                 {
                     //if(!wifi_info.IsValid)
                     //    wifi_info = WIFI_Info.Load();
-                    //if (wifi_info.IsValid)
-                    //{
-                    //    WIFI_SetCountry(device_addr, wifi_info.country);
-                    //    WIFI_SetFreq(device_addr, (ushort)wifi_info.host_freq);
-                    //    WIFI_SetSSID(device_addr, wifi_info.host_ssid);
-                    //    WIFI_SetPassword(device_addr, wifi_info.host_passwd);
-                    //    WIFI_ACK_Sync(device_addr, current_host_indx);
-                    //    WIFI_ACK_ConnectionStatus(device_addr); 
-                    //}
+                    if (!dev.IsHost && wifi_info.IsValid)
+                    {
+                        SendWIFIToTracker(device_addr);
+                    }
                 }
                 else if (second == ConstantsChorusdAck.ACK_MAP_STATUS)
                 {
                     var status = Array.ConvertAll(data_real.Split(","), a => a.ToInt());
-
+                    dev.MapStatus = (MapStatus)status[1];
                     Log.dongleAPILogger?.WriteLine($"   Got MAP_STATUS ({macAddress}): {status.ArrayToString()} ({ConstantsChorusdStatus.MapStatusToStr(status[1])})");
-                    handle_map_state(deviceIndx, status[1]);
+                   
+                    dev.UpdateMapState(status[1]);
 
                     //comms.send_ack_to_all(ACK_END_MAP)
 
@@ -615,9 +645,10 @@ namespace VIVE_Trackers
                         handle_disconnected(deviceIndx);
                         CloseChannelForScan();
                     }
-                    else if (second == ConstantsChorusdAck.ACK_TRACKING_MODE)
+                    else if (third == ConstantsChorusdAck.ACK_TRACKING_MODE)
                     {
-                        registeredActions[ConstantsChorusdAck.ACK_TRACKING_MODE]?.Invoke(data);
+                        if(registeredActions.ContainsKey(ConstantsChorusdAck.ACK_TRACKING_MODE))
+                            registeredActions[ConstantsChorusdAck.ACK_TRACKING_MODE]?.Invoke(data);
                     }
                     else
                     {
@@ -645,6 +676,23 @@ namespace VIVE_Trackers
                 }
             }
         }
+
+        private void SendWIFIToTracker(byte[] device_addr)
+        {
+            Log.dongleAPILogger?.WarningLine("Send WIFI to client tracker");
+            SendAckTo(device_addr, ConstantsChorusdAck.ACK_WIFI_COUNTRY + wifi_info.country);
+            SendAckTo(device_addr, $"{ConstantsChorusdAck.ACK_WIFI_FREQ}{wifi_info.host_freq}");
+            SendAckTo(device_addr, ConstantsChorusdAck.ACK_WIFI_SSID_FULL + wifi_info.host_ssid.Substring(0, 13));
+            for (int i = 13; i < wifi_info.host_ssid.Length; i += 13)
+            {
+                var len = wifi_info.host_ssid.Length - i;
+                if (len == 0) break;
+                SendAckTo(device_addr, ConstantsChorusdAck.ACK_WIFI_SSID_APPEND + wifi_info.host_ssid.Substring(i, len));
+            }
+            SendAckTo(device_addr, ConstantsChorusdAck.ACK_WIFI_PW + wifi_info.host_passwd);
+            SendAckTo(device_addr, ConstantsChorusdAck.ACK_FILE_WRITE + 1);
+        }
+
         /// <summary>
         /// Ответ на ACK_AZZ
         /// </summary>
@@ -653,7 +701,7 @@ namespace VIVE_Trackers
         {
             dev.IsHost = current_host_indx == dev.CurrentIndex;
             var mode = (current_host_indx == dev.CurrentIndex ? 2 : 1);
-            var track_mode = (current_host_indx == dev.CurrentIndex ? 21 : 20);
+            var track_mode = (current_host_indx == dev.CurrentIndex ? 21 : 11);//20);
             SendAckTo(dev.CurrentAddress, ConstantsChorusdAck.ACK_ARPERSIST_VBP);
             SendAckTo(dev.CurrentAddress, ConstantsChorusdAck.ACK_ARPENROLL_UID);
             SendAckTo(dev.CurrentAddress, $"{ConstantsChorusdAck.ACK_FILE_WRITE}{mode}");
@@ -664,27 +712,28 @@ namespace VIVE_Trackers
             }
         }
 
-        private void SendWIFIConnection(byte[] device_addr, int deviceIndx)
+        private void SendWIFIConnection(TrackerDeviceInfo dev)
         {
-            WIFI_SetCountry(device_addr, wifi_info.country);
-            WIFI_SetFreq(device_addr, (ushort)wifi_info.host_freq);
-            WIFI_SetSSID(device_addr, wifi_info.host_ssid);
-            WIFI_SetPassword(device_addr, wifi_info.host_passwd);
+            var device_addr = dev.CurrentAddress;
+            var deviceIndx = dev.CurrentIndex;
+            var mode = (current_host_indx == deviceIndx ? 2 : 1);
+
+            //WIFI_SetCountry(device_addr, wifi_info.country);
+            //WIFI_SetFreq(device_addr, (ushort)wifi_info.host_freq);
+            // WIFI_SetSSID(device_addr, wifi_info.host_ssid);
+            //WIFI_SetPassword(device_addr, wifi_info.host_passwd);
             //WIFI_ACK_Sync(device_addr, current_host_indx);
             //WIFI_ACK_ConnectionStatus(device_addr);
-            var mode = (current_host_indx == deviceIndx ? 2 : 1);
-            SendAckTo(device_addr, ConstantsChorusdAck.ACK_FILE_WRITE + mode);
-        }
-
-        /// <summary>
-        /// Обработка состояния карты
-        /// </summary>
-        /// <param name="device_idx"></param>
-        /// <param name="state"></param>
-        protected void handle_map_state(byte device_idx, int state)
-        {
-            var dev = Get(device_idx);
-            dev.UpdateMapState(device_idx, state);
+            //SendAckTo(device_addr, ConstantsChorusdAck.ACK_FILE_WRITE + mode);
+            SendWIFIToTracker(device_addr);
+            //SendAckTo(device_addr, ConstantsChorusdAck.ACK_WIFI_SETUP);
+            if (mode == 1 && !dev.IsConnectedToHost) // is client
+            {
+                //SendAckTo(device_addr, ConstantsChorusdAck.ACK_WIFI_CONNECT + 1);
+                delayedTickActions[ConstantsChorusdAck.ACK_WIFI_SETUP] = (ack) => SendAckTo(device_addr, ack);
+            }
+            else if (delayedTickActions.ContainsKey(ConstantsChorusdAck.ACK_WIFI_SETUP))
+                delayedTickActions.Remove(ConstantsChorusdAck.ACK_WIFI_SETUP);
         }
 
         void IVIVEDongle.SendAck(int trackerIndex, string ack_command)
@@ -693,9 +742,9 @@ namespace VIVE_Trackers
             SendAckTo(dev.CurrentAddress, ack_command);
         }
 
-        protected void SendAckTo(byte[] mac, string ack)
+        protected async void SendAckTo(byte[] mac, string ack)
         {
-            var result = send_cmd_raw(GetAckRequest(DCMD_TX, mac, 0, 1, ack.EncodeFromUTF8()), false, true);
+            var result = await send_cmd_raw(GetAckRequest(DCMD_TX, mac, 0, 1, ack.EncodeFromUTF8()), false, true);
             var answ = result.Length == 1 && result[0] == 3 ? "OK" : BitConverter.ToString(result);
 
             Log.dongleAPILogger?.Write($"[SEND ACK ");
@@ -716,7 +765,7 @@ namespace VIVE_Trackers
             Array.Copy(ack, 0, result, 12, ack.Length);
             return result;
         }
-        protected void SendAckTo(byte idx, string ack)
+        protected async void SendAckTo(byte idx, string ack)
         {
             if (idx < 0) return;
 
@@ -731,7 +780,7 @@ namespace VIVE_Trackers
             data.AddRange(StructConverter.Pack("<B", (byte)ack.Length));
             data.AddRange(ack.EncodeFromUTF8());
 
-            var result = send_cmd(DCMD_TX, data.ToArray(), false);
+            var result = await send_cmd(DCMD_TX, data.ToArray(), false);
             var answ = result.Length == 1 && result[0] == 4 ? "OK" : BitConverter.ToString(result);
             Log.dongleAPILogger?.Write($"[SEND ACK ");
             Log.dongleAPILogger?.Green($"#{idx} "); 
@@ -739,9 +788,9 @@ namespace VIVE_Trackers
             Log.dongleAPILogger?.WriteLine($"ANSWER] {answ}");
         }
 
-        protected byte[] send_cmd(byte cmd_id, byte data, bool showLog, bool waitAnswer = false) => send_cmd(cmd_id, new byte[] { data }, showLog, waitAnswer);
-        protected abstract byte[] send_cmd(byte cmd_id, byte[] data, bool showLog, bool waitAnswer = false);
-        protected abstract byte[] send_cmd_raw(byte[] data, bool showLog, bool waitAnswer = false);
+        protected async Task<byte[]> send_cmd(byte cmd_id, byte data, bool showLog, bool waitAnswer = false) => await send_cmd(cmd_id, new byte[] { data }, showLog, waitAnswer);
+        protected abstract Task<byte[]> send_cmd(byte cmd_id, byte[] data, bool showLog, bool waitAnswer = false);
+        protected abstract Task<byte[]> send_cmd_raw(byte[] data, bool showLog, bool waitAnswer = false);
 
         protected virtual void SaveTrackerInfo(TrackerDeviceInfo info)
         { }
@@ -749,7 +798,7 @@ namespace VIVE_Trackers
         /// <summary>
         /// разблокирует ранее привязанные устройства по их индексу
         /// </summary>
-        public void ApplicationStarted()
+        public async void ApplicationStarted()
         {
             var indexes = GetActiveIndexes();
             byte[] flags = new byte[MAX_TRACKER_COUNT];
@@ -757,12 +806,12 @@ namespace VIVE_Trackers
                 flags[i] = 0x00;
             foreach (var item in indexes)
                 flags[item] = 0x01;
-            send_cmd(DCMD_1E, null, true, false); //preambule
-            send_cmd(DCMD_QUERY_ROM_VERSION, StructConverter.Pack($"<BB", 0x00, 0x00), true);
-            send_cmd(DCMD_GET_CR_ID, StructConverter.Pack($"<BB", 0x12, 0x00), true);
-            send_cmd(DCMD_REQUEST_RF_CHANGE_BEHAVIOR, StructConverter.Pack($"<BB{MAX_TRACKER_COUNT}BB", ApplicationStatus.READY_MODE, 0x01, flags, 0x00), true);
+            await send_cmd(DCMD_1E, null, true, true); //preambule
+            await send_cmd(DCMD_QUERY_ROM_VERSION, StructConverter.Pack($"<BB", 0x00, 0x00), true);
+            await send_cmd(DCMD_GET_CR_ID, StructConverter.Pack($"<BB", 0x12, 0x00), true);
+            await send_cmd(DCMD_REQUEST_RF_CHANGE_BEHAVIOR, StructConverter.Pack($"<BB{MAX_TRACKER_COUNT}BB", ApplicationStatus.READY_MODE, 0x01, flags, 0x00), true);
         }
-        public void OpenChannelForScan()
+        public async void OpenChannelForScan()
         {
             var indexes = GetActiveIndexes();
             byte[] flags = new byte[MAX_TRACKER_COUNT];
@@ -770,10 +819,10 @@ namespace VIVE_Trackers
                 flags[i] = 0x1;
             foreach (var item in indexes)
                 flags[item] = 0x00;
-            send_cmd(DCMD_1E, null, true, false);
-            send_cmd(DCMD_REQUEST_RF_CHANGE_BEHAVIOR, StructConverter.Pack($"<BB{MAX_TRACKER_COUNT}BB", ApplicationStatus.SCAN_MODE, 0x01, flags, 0x00), true);
+            await send_cmd(DCMD_1E, null, true, true);
+            await send_cmd(DCMD_REQUEST_RF_CHANGE_BEHAVIOR, StructConverter.Pack($"<BB{MAX_TRACKER_COUNT}BB", ApplicationStatus.SCAN_MODE, 0x01, flags, 0x00), true);
         }
-        public void CloseChannelForScan()
+        public async void CloseChannelForScan()
         {
             var indexes = GetActiveIndexes();
             byte[] flags = new byte[MAX_TRACKER_COUNT];
@@ -781,36 +830,36 @@ namespace VIVE_Trackers
                 flags[i] = 0x1;
             foreach (var item in indexes)
                 flags[item] = 0x00;
-            send_cmd(DCMD_1E, null, true, false);
-            send_cmd(DCMD_REQUEST_RF_CHANGE_BEHAVIOR, StructConverter.Pack($"<BB{MAX_TRACKER_COUNT}BB", ApplicationStatus.READY_MODE, 0x01, flags, 0x00), true);
+            await send_cmd(DCMD_1E, null, true, true);
+            await send_cmd(DCMD_REQUEST_RF_CHANGE_BEHAVIOR, StructConverter.Pack($"<BB{MAX_TRACKER_COUNT}BB", ApplicationStatus.READY_MODE, 0x01, flags, 0x00), true);
         }
         /// <summary>
         /// должно вызываться при выключении программы, при этом статус привязаного устройства меняется на 3000005
         /// </summary>
-        public virtual void CloseApplication()
+        public async virtual void CloseApplication()
         {
             byte[] flags = new byte[MAX_TRACKER_COUNT];
             for (int i = 0; i < flags.Length; i++)
                 flags[i] = 0x1;
-            send_cmd(DCMD_1E, null, true, false);
-            send_cmd(DCMD_REQUEST_RF_CHANGE_BEHAVIOR, StructConverter.Pack($"<BB{MAX_TRACKER_COUNT}BB", ApplicationStatus.IDLE_MODE, 0x01, flags, 0x00), true);
+            await send_cmd(DCMD_1E, null, true, true);
+            await send_cmd(DCMD_REQUEST_RF_CHANGE_BEHAVIOR, StructConverter.Pack($"<BB{MAX_TRACKER_COUNT}BB", ApplicationStatus.IDLE_MODE, 0x01, flags, 0x00), true);
         }
-        public void UnpairAll()
+        public async void UnpairAll()
         {
             //var indexes = GetActiveIndexes();
             byte[] flags = new byte[MAX_TRACKER_COUNT];
             for (int i = 0; i < flags.Length; i++)
                 flags[i] = 0x1;
-            send_cmd(DCMD_REQUEST_RF_CHANGE_BEHAVIOR, StructConverter.Pack($"<BB{MAX_TRACKER_COUNT}BB", ApplicationStatus.UNPAIR_MODE, 0x01, flags, 0x00), true);
+            await send_cmd(DCMD_REQUEST_RF_CHANGE_BEHAVIOR, StructConverter.Pack($"<BB{MAX_TRACKER_COUNT}BB", ApplicationStatus.UNPAIR_MODE, 0x01, flags, 0x00), true);
             DestroyDevices();
             SaveTrackerInfo(null);
         }
-        public void Unpair(int indx)
+        public async void Unpair(int indx)
         {
             var indexes = GetActiveIndexes();
             byte[] flags = new byte[MAX_TRACKER_COUNT];
             flags[indx] = 0x1;
-            send_cmd(DCMD_REQUEST_RF_CHANGE_BEHAVIOR, StructConverter.Pack($"<BB{MAX_TRACKER_COUNT}BB", ApplicationStatus.UNPAIR_MODE, 0x01, flags, 0x00), true);
+            await send_cmd(DCMD_REQUEST_RF_CHANGE_BEHAVIOR, StructConverter.Pack($"<BB{MAX_TRACKER_COUNT}BB", ApplicationStatus.UNPAIR_MODE, 0x01, flags, 0x00), true);
             
             // clear file
             SaveTrackerInfo(null);
@@ -819,17 +868,20 @@ namespace VIVE_Trackers
             SaveExistedTrackersInfo();
         }
 
-        private void ShowInfo()
+        protected virtual void ShowInfo()
         {
-            OnDongleInfo?.Invoke(new KeyValuePair<string, string>[]
-                {
-                    new KeyValuePair<string, string>("PCBID", get_PCBID()),
-                    new KeyValuePair<string, string>("SKUID", get_SKUID()),
-                    new KeyValuePair<string, string>("SN", get_SN()),
-                    new KeyValuePair<string, string>("ShipSN", get_ShipSN()),
-                    new KeyValuePair<string, string>("CapFPC", get_CapFPC()),
-                    new KeyValuePair<string, string>("ROMVersion", get_ROMVersion())
-                });
+            //var pcb = await get_PCBID();
+            //var sku = await get_SKUID();
+            //var sn = await get_SN();
+            //var ssn = await get_ShipSN();
+            //var fpc = await get_CapFPC();
+            //var rom = await get_ROMVersion();
+            //RaiseDongleInfoEvent(pcb, sku, sn, ssn, fpc, rom);
+        }
+
+        protected void RaiseDongleInfoEvent(KeyValuePair<string, string>[] info)
+        {
+            OnDongleInfo?.Invoke(info);
         }
 
         void IVIVEDongle.PowerOffAll()
@@ -864,6 +916,7 @@ namespace VIVE_Trackers
                 {
                     registeredActions.Remove(ConstantsChorusdAck.ACK_TRACKING_MODE);
                     SendAckTo(dev.CurrentAddress, ack);
+                    SendAckTo(dev.CurrentAddress, ConstantsChorusdAck.ACK_END_MAP);
                 };
                 SendAckTo(dev.CurrentAddress, ConstantsChorusdAck.ACK_TRACKING_MODE);
             }
@@ -909,25 +962,9 @@ namespace VIVE_Trackers
         }
 
         #region Helper
-        protected string get_PCBID() => send_cmd(DCMD_GET_CR_ID, CR_ID_PCBID, false).DecodeToUTF8();
-        protected string get_SKUID() => send_cmd(DCMD_GET_CR_ID, CR_ID_SKUID, false).DecodeToUTF8();
-        protected string get_SN() => send_cmd(DCMD_GET_CR_ID, CR_ID_SN, false).DecodeToUTF8();
-        protected string get_ShipSN() => send_cmd(DCMD_GET_CR_ID, CR_ID_SHIP_SN, false).DecodeToUTF8();
-        protected string get_CapFPC() => send_cmd(DCMD_GET_CR_ID, CR_ID_CAP_FPC, false).DecodeToUTF8();
-        protected string get_ROMVersion() => send_cmd(DCMD_QUERY_ROM_VERSION, 0x00, false).DecodeToUTF8();
-
-        void IVIVEDongle.ScanMap(int indx)
-        {
-            var dev = Get(indx);
-            //LambdaEndMap(dev.CurrentAddress);
-            if (dev.IsHost)
-                SendAckTo(dev.CurrentAddress, ConstantsChorusdAck.ACK_START_MAP);
-            else Log.dongleAPILogger?.ErrorLine($"[ASK_FOR_MAP] Device:SN-{dev.SerialNumber} INDX-{dev.CurrentIndex} is not host");
-        }
         void IVIVEDongle.EndScanMap(int indx)
         {
             var dev = Get(indx);
-            //LambdaEndMap(dev.CurrentAddress);
             if (dev.IsHost)
                 SendAckTo(dev.CurrentAddress, ConstantsChorusdAck.ACK_END_MAP);
             else Log.dongleAPILogger?.ErrorLine($"[ASK_FOR_END_MAP] Device:SN-{dev.SerialNumber} INDX-{dev.CurrentIndex} is not host");
@@ -989,58 +1026,6 @@ namespace VIVE_Trackers
                 }
             }
         }
-        void WIFI_ACK_ConnectionStatus(byte[] addr)
-        {
-            SendAckTo(addr, ConstantsChorusdAck.ACK_WIFI_CONNECT);
-        }
-        void WIFI_ACK_Sync(byte[] addr, int hostIndex)
-        {
-            SendAckTo(addr, ConstantsChorusdAck.ACK_WIFI_CONNECT + hostIndex);
-        }
-        void WIFI_SetSSID(byte[] addr, string ssid)
-        {
-            Log.dongleAPILogger?.WriteLine(ssid.Substring(0, 13));
-            WIFI_SetSSIDFull(addr, ssid.Substring(0, 13));
-
-            for (int i = 13; i < ssid.Length; i += 13)
-            {
-                var len = ssid.Length - i;
-                if (len == 0) break;
-                WIFI_SetSSIDAppend(addr, ssid.Substring(i, len));
-            }
-        }
-
-        /// <summary>
-        /// Ws
-        /// </summary>
-        /// <param name="idx"></param>
-        /// <param name="ssid"></param>
-        void WIFI_SetSSIDFull(byte[] addr, string ssid) => SendAckTo(addr, ConstantsChorusdAck.ACK_WIFI_SSID_FULL + ssid);
-        /// <summary>
-        /// Wt
-        /// </summary>
-        /// <param name="idx"></param>
-        /// <param name="ssid"></param>
-        void WIFI_SetSSIDAppend(byte[] addr, string ssid) => SendAckTo(addr, ConstantsChorusdAck.ACK_WIFI_SSID_APPEND + ssid);
-        /// <summary>
-        /// Wc
-        /// </summary>
-        /// <param name="idx"></param>
-        /// <param name="country"></param>
-        void WIFI_SetCountry(byte[] addr, string country) => SendAckTo(addr, ConstantsChorusdAck.ACK_WIFI_COUNTRY + country);
-        /// <summary>
-        /// Wp
-        /// </summary>
-        /// <param name="idx"></param>
-        /// <param name="pass"></param>
-        void WIFI_SetPassword(byte[] addr, string pass) => SendAckTo(addr, ConstantsChorusdAck.ACK_WIFI_PW + pass);
-        /// <summary>
-        /// Wf
-        /// </summary>
-        /// <param name="idx"></param>
-        /// <param name="freq"></param>
-        void WIFI_SetFreq(byte[] addr, ushort freq) => SendAckTo(addr, $"{ConstantsChorusdAck.ACK_WIFI_FREQ}{freq}");
-
         /// <summary>
         /// ARI
         /// </summary>
@@ -1092,126 +1077,7 @@ namespace VIVE_Trackers
         }
         public static string MacToStr(byte[] b) => $"{b[0]:X2}:{b[1]:X2}:{b[2]:X2}:{b[3]:X2}:{b[4]:X2}:{b[5]:X2}";
 
-        static void HEXDump(byte[] b, int startIndex = 0, int count = 0, string prefix = "", bool hexView = true)
-        {
-#if SHOW_DUMP
-            Log.WriteLine("--------------------------DUMP--------------------------------", Log.LogType.Blue);
-            //Debug.WriteLine("--------------------------DUMP--------------------------------");
-            string str = prefix;
-            if (count <= 0)
-                count = b.Length;
-            for (int i = startIndex; i < count; i++)
-            {
-                if (i % 8 == 0)
-                {
-                    if (!string.IsNullOrEmpty(str))
-                    {
-                        //Debug.WriteLine(str);
-
-                        if (str != prefix && !string.IsNullOrEmpty(str) && i > 0)
-                        {
-                            str += "    ";
-                            for (int j = i - 8; j < i; j++)
-                            {
-                                var ch = (char)b[j];
-                                if (!char.IsSymbol(ch))
-                                    ch = '.';
-                                if (ch == '\n' || ch == '\r')
-                                    ch = '.';
-                                if (b[j] == 0 || b[j] == 1)
-                                    ch = '.';
-                                str += ch + " ";
-                            }
-                        }
-                        Log.WriteLine(str, Log.LogType.Blue);
-                    }
-                    str = prefix + (hexView ? b[i].ToString("X2") : b[i].ToString().PadLeft(3)) + "  ";
-                }
-                else str += (hexView ? b[i].ToString("X2") : b[i].ToString().PadLeft(3)) + "  ";
-            }
-            if (str != prefix && !string.IsNullOrEmpty(str))
-            {
-                str += "    ";
-                for (int j = count - 8; j < count; j++)
-                {
-                    var ch = (char)b[j];
-                    if (!char.IsSymbol(ch))
-                        ch = '.';
-                    if (ch == '\n' || ch == '\r')
-                        ch = '.';
-                    if (b[j] == 0 || b[j] == 1)
-                        ch = '.';
-                    str += ch + " ";
-                }
-            }
-            Log.WriteLine(str, Log.LogType.Blue);
-            Log.WriteLine("--------------------------------------------------------------", Log.LogType.Blue); 
-#endif
-        }
-
         public abstract void Dispose();
-        #endregion
-
-        #region Unused
-        //protected static int do_u8_checksum(IEnumerable<byte> data)
-        //{
-        //    var _out = 0;
-        //    foreach (var item in data)
-        //    {
-        //        _out ^= item;
-        //    }
-        //    return _out;
-        //}
-        //protected static byte[] send_raw(HidStream stream, byte[] data, bool pad = true)
-        //{
-        //    if (data == null)
-        //        data = new byte[0];
-        //    int BUFFER_SIZE = 0x41;
-        //    List<byte> output = new List<byte>(BUFFER_SIZE); // 65 byte for command
-        //    output.AddRange(data);
-        //    if (pad)
-        //        output.AddRange(new byte[Math.Max(0, BUFFER_SIZE - output.Count)]); // заполняем остальнное нулями до размера 65
-
-        //    //print(f"Sending raw:")
-        //    //hex_dump(out)
-
-        //    try
-        //    {
-        //        stream.SetFeature(output.ToArray());
-        //        var resp = new byte[BUFFER_SIZE];
-        //        stream.GetFeature(resp);
-        //        //hex_dump(resp)
-        //        return resp;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        Console.Error.WriteLine(ex.ToString());
-        //        return new byte[0];
-        //    }
-        //}
-        //protected static byte[] send_F4_to_all(HidStream stream, byte subcmd, byte[] data)
-        //{
-        //    return send_F4(stream, new byte[] { 1, 1, 1, 1, 1 }, subcmd, data);
-        //}
-        //protected static byte[] send_F4(HidStream stream, byte[] trackers, byte subcmd, byte[] data)
-        //{
-        //    if (data == null)
-        //        data = new byte[0];
-        //    if (trackers.Length != 5)
-        //        return new byte[0];
-
-        //    int BUFFER_SIZE = 0x40;
-        //    List<byte> checksummed_data = new List<byte>(BUFFER_SIZE); // 65 byte for command
-        //    checksummed_data.AddRange(trackers);
-        //    checksummed_data.Add(subcmd);
-        //    checksummed_data.AddRange(data);
-
-        //    var out_data = do_u8_checksum(checksummed_data);// + checksummed_data;
-        //    checksummed_data.Insert(0, (byte)out_data);
-        //    var arr = checksummed_data.ToArray();
-        //    HEXDump(arr);
-        //    return send_cmd(stream, ConstantsChorusdDongle.DCMD_F4, arr);
-        //}
         #endregion
     }
 }

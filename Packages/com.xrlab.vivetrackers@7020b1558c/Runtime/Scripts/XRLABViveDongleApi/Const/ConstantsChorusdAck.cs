@@ -80,7 +80,7 @@ namespace VIVE_Trackers.Constants
         /// <summary>
         /// может не сработать
         /// </summary>
-        public const string ACK_START_MAP = "AHE"; // 
+        //public const string ACK_START_MAP = "AHE"; // 
         public const string ACK_END_MAP = "ALE";
         public const string ACK_BLINK = "AHT"; // 
         /// <summary>
@@ -97,7 +97,7 @@ namespace VIVE_Trackers.Constants
         public const string ACK_STANDBY = "APS";
         public const string ACK_RESET = "APR";
 
-        public const string ACK_WIFI_SSID_PASS = "WS";
+        public const string ACK_WIFI_SETUP = "WS";
         public const string ACK_WIFI_SSID_FULL = "Ws";
         public const string ACK_WIFI_IP = "WI";
         public const string ACK_WIFI_IP_2 = "Wi";
@@ -136,6 +136,9 @@ namespace VIVE_Trackers.Constants
         public const string ACK_ERROR_CODE = "DEC"; // DEC?
         public const string ACK_RESEND_DEVICE_INFO = "NA"; // resends device info?
         public const string ACK_MAP_STATUS = "MS";
+        public const string ACK_MAP_SYNC_ILA = "pMS_ILA"; // ????????
+        public const string ACK_MAP_SYNC_IHA = "pMS_IHA"; // ????????
+        public const string ACK_MAP_SYNC_ES = "pMS_ES"; // ????????
 
         public const ushort ERROR_NO_CAMERA = 1100;
         public const ushort ERROR_CAMERA_SSR_1 = 1121;

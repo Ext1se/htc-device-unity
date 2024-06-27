@@ -156,6 +156,7 @@ namespace VIVE_Trackers
         }
 
         string logStr = "";
+        public event System.Action<string> IncomingLogData;
 
         public void Write(object msg, LogType type)
         {
@@ -218,6 +219,9 @@ namespace VIVE_Trackers
                     default:
                         break;
                 }
+
+
+                IncomingLogData?.Invoke(msg.ToString());
             }
             else
             {
@@ -226,6 +230,7 @@ namespace VIVE_Trackers
                     msg = logStr + msg.ToString();
                     logStr = "";
                     Debug.Log(msg.ToString());
+                    IncomingLogData?.Invoke(msg.ToString());
                 }
             }
         }

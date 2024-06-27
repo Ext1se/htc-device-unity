@@ -9,6 +9,8 @@ namespace VIVE_Trackers
         public byte cmd_id;
         public byte[] ret;
 
+        public bool IsEmpty => ret == null || ret.Length == 0;
+
         public ResponseStruct(byte err, byte cmd_id, byte[] ret)
         {
             this.err = err;

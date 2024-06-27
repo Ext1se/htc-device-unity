@@ -1,5 +1,19 @@
 ﻿namespace VIVE_Trackers.Constants
 {
+    public enum MapStatus
+    {
+        MAP_NOT_CHECKED = 0,
+        MAP_EXIST,
+        MAP_NOTEXIST,
+        MAP_REBUILT,
+        MAP_SAVE_OK,
+        MAP_SAVE_FAIL,
+        MAP_REUSE_OK,
+        MAP_REUSE_FAIL_FEATURE_DIFF,
+        MAP_REUSE_FAIL_FEATURE_LESS,
+        MAP_REBUILD_WAIT_FOR_STATIC,
+        MAP_REBUILD_CREATE_MAP
+    }
     internal class ConstantsChorusdStatus
     {
         // Work state enum, set by HORUS_CMD_POWER
@@ -80,6 +94,7 @@
         public const byte ASK_MAP = 1;
         public const byte KF_SYNC = 2;
         public const byte RESET_MAP = 3;
+
 
         private static readonly string[] _map_status_strs = new string[] { "MAP_NOT_CHECKED", "MAP_EXIST", "MAP_NOTEXIST", "MAP_REBUILT", "MAP_SAVE_OK", "MAP_SAVE_FAIL", "MAP_REUSE_OK", "MAP_REUSE_FAIL_FEATURE_DIFF", "MAP_REUSE_FAIL_FEATURE_LESS", "MAP_REBUILD_WAIT_FOR_STATIC", "MAP_REBUILD_CREATE_MAP" };
         public static string MapStatusToStr(int idx) => _map_status_strs[idx];

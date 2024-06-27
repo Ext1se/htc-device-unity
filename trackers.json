@@ -1,14 +1,14 @@
 [
   {
-    "SN": "FA3AR3B00445",
-    "SHIPSN": "43A3339V02303",
-    "SKU": "00000000",
-    "PCB": "000000FF",
+    "SN": "FA3AK3B00631",
+    "SHIPSN": "43A3339L00646",
+    "SKU": "00059600",
+    "PCB": "505001FF",
     "Firmware": "1.0.999.152",
     "IsHost": true,
     "HasHostMap": false,
     "IsConnectedToHost": false,
-    "CurrentIndex": 1,
+    "CurrentIndex": 3,
     "RoleID": 0
   },
   {

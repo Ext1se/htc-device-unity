@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using UnityEngine;
 using static VIVE_Trackers.TrackerDeviceInfo;
 
@@ -107,7 +108,7 @@ namespace VIVE_Trackers
                 ParseUSBData(resp.Skip(i * 64).Take(64).ToArray());
         }
 
-        protected override byte[] send_cmd(byte cmd_id, byte[] data, bool showLog, bool waitAnswer = false)
+        protected async override Task<byte[]> send_cmd(byte cmd_id, byte[] data, bool showLog, bool waitAnswer = false)
         {
             if (OnlyListenerMode)
             {
@@ -134,21 +135,27 @@ namespace VIVE_Trackers
                     }
                     return result;
                 }
-                for (int i = 0; i < 10; i++)
+                while(true)
                 {
                     var resp = GetFeature();
                     var respData = ResponseStruct.Parse(resp, false);
                     if (respData.err != 0)
                     {
                         Log.dongleAPILogger?.ErrorLine($"Got error response: {respData.err}");
-                        continue; //return new byte[0];
+                        //continue; //return new byte[0];
+                        await Task.Yield();
                     }
-                    if (respData.cmd_id != cmd_id)
+                    else if (respData.cmd_id != cmd_id)
                     {
                         Log.dongleAPILogger?.ErrorLine($"Got error response (wrong commandID): {cmd_id}");
-                        continue; //return new byte[0];
+                        //continue; //return new byte[0];
+                        await Task.Yield();
                     }
-                    result = respData.ret;
+                    else
+                    {
+                        result = respData.ret;
+                        break;
+                    }
                 }
             }
             catch (Exception ex)
@@ -163,7 +170,7 @@ namespace VIVE_Trackers
             }
             return result;
         }
-        protected override byte[] send_cmd_raw(byte[] data, bool showLog, bool waitAnswer = false)
+        protected async override Task<byte[]> send_cmd_raw(byte[] data, bool showLog, bool waitAnswer = false)
         {
             if (OnlyListenerMode)
             {
@@ -179,21 +186,27 @@ namespace VIVE_Trackers
             {
                 SetFeature(output.ToArray());
                 if (!waitAnswer) return result;
-                for (int i = 0; i < 10; i++)
+                while (true)
                 {
                     var resp = GetFeature();
                     var respData = ResponseStruct.Parse(resp, false);
                     if (respData.err != 0)
                     {
                         Log.dongleAPILogger?.ErrorLine($"Got error response: {respData.err}");
-                        continue; //return new byte[0];
+                        //continue; //return new byte[0];
+                        await Task.Yield();
                     }
-                    if (respData.cmd_id != data[0])
+                    else if (respData.cmd_id != data[0])
                     {
                         Log.dongleAPILogger?.ErrorLine($"Got error response (wrong commandID): {data[0]}");
-                        continue; //return new byte[0];
+                        //continue; //return new byte[0];
+                        await Task.Yield();
                     }
-                    result = respData.ret;
+                    else
+                    {
+                        result = respData.ret;
+                        break;
+                    }
                 }
             }
             catch (Exception ex)
