@@ -33,6 +33,10 @@ namespace VIVE_Trackers
         void PowerOff(int indx);
         void PowerOffAllAndClearPairingList();
         void StandByAll();
+
+        void SetIndividualMapScan(int indx);
+        void SetConnectionToHostMap(int indx);
+
         void DoLoop();
         //void Reset(ResetMode mode);
         void GetDongleInfo();

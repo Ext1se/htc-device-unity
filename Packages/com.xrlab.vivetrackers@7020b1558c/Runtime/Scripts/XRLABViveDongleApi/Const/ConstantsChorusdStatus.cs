@@ -14,6 +14,14 @@
         MAP_REBUILD_WAIT_FOR_STATIC,
         MAP_REBUILD_CREATE_MAP
     }
+
+    public enum TrackerMode
+    {
+        Invalid = -1,
+        Host = 21, 
+        Client_NoWIFISync = 20,
+        Client_WIFISync = 11
+    }
     internal class ConstantsChorusdStatus
     {
         // Work state enum, set by HORUS_CMD_POWER

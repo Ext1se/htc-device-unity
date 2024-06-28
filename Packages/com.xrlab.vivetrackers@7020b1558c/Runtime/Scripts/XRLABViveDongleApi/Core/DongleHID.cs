@@ -132,32 +132,6 @@ namespace VIVE_Trackers
                 return;
             }
             ACKInitTracker(device_idx, addr);
-
-            //ACK_SetNewID(addr, device_idx);
-            //WIFI_SetCountry(addr, wifi_info.country);
-            // ждем команду AZZ в пакете DRESP_TRACKER_INCOMING (ParseTrackerIncoming)
-
-            //// TODO: detect re-pairs and force re-init
-            //if (current_host_indx == -1 /*|| dev.IsHost*/)
-            //{
-            //    current_host_indx = device_idx;
-            //    dev.IsHost = true;
-            //    Log.WriteLine($"Making {paired_mac_str} the SLAM HOST", Log.LogType.Green);
-            //    ACK_SetTrackingMode(addr, ConstantsChorusdStatus.TRACKING_MODE_HOST_ON);
-            //}
-            //else 
-            //{
-            //    if (!dev.IsInit)
-            //    {
-            //        dev.IsHost = false;
-            //        Log.WriteLine($"Making {paired_mac_str} the SLAM CLIENT", Log.LogType.Green);
-            //        ACK_SetTrackingMode(addr, ConstantsChorusdStatus.TRACKING_MODE_CLIENT_ON);
-            //    }
-            //}
-            //ACK_SetTrackingHost(addr, current_host_indx);
-            //ACK_SetWIFIHost(addr, current_host_indx);
-
-            //ACK_SetRoleID(addr, 1);
         }
 
         protected virtual void ACKInitTracker(byte device_idx, byte[] addr)
@@ -171,7 +145,6 @@ namespace VIVE_Trackers
 
         protected virtual void ParseDongleStatus(byte[] data)
         {
-            //Log.dongleAPILogger?.WriteLine("PARSE_TRACKER_STATUS");
             var res = StructConverter.Unpack("<6BLLLLL", data);
             var status = (byte[])res[0];
             pair_state = new PairState[MAX_TRACKER_COUNT] { (PairState)(uint)res[1], (PairState)(uint)res[2], (PairState)(uint)res[3], (PairState)(uint)res[4], (PairState)(uint)res[5] };
@@ -587,6 +560,8 @@ namespace VIVE_Trackers
                     {
                         SendWIFIConnection(dev);
                     }
+                    else
+                        delayedTickActions.Remove(ConstantsChorusdAck.ACK_WIFI_SETUP);
                 }
                 else if (second == ConstantsChorusdAck.ACK_WIFI_ERROR)
                 {
@@ -618,6 +593,10 @@ namespace VIVE_Trackers
                     // Got MAP_STATUS: -1,1
 
                     // Got MAP_STATUS: 0,6 = mapped and tracking
+                    if(!dev.IsHost && (dev.MapStatus == MapStatus.MAP_REBUILT || dev.MapStatus == MapStatus.MAP_REUSE_OK) && dev.Mode == TrackerMode.Client_NoWIFISync)
+                    {
+                        SendAckTo(dev.CurrentAddress, ConstantsChorusdAck.ACK_TRACKING_MODE + ((int)TrackerMode.Client_WIFISync));
+                    }
                 }
                 else
                 {
@@ -647,8 +626,13 @@ namespace VIVE_Trackers
                     }
                     else if (third == ConstantsChorusdAck.ACK_TRACKING_MODE)
                     {
-                        if(registeredActions.ContainsKey(ConstantsChorusdAck.ACK_TRACKING_MODE))
-                            registeredActions[ConstantsChorusdAck.ACK_TRACKING_MODE]?.Invoke(data);
+                        if (registeredActions.ContainsKey(ConstantsChorusdAck.ACK_TRACKING_MODE))
+                        {
+                            registeredActions[ConstantsChorusdAck.ACK_TRACKING_MODE]?.Invoke(data); 
+                            dev.SetTrackerMode(data.Substring(3).ToInt());
+                        }
+                        else
+                            dev.SetTrackerMode(data.Substring(3).ToInt());
                     }
                     else
                     {
@@ -701,11 +685,22 @@ namespace VIVE_Trackers
         {
             dev.IsHost = current_host_indx == dev.CurrentIndex;
             var mode = (current_host_indx == dev.CurrentIndex ? 2 : 1);
-            var track_mode = (current_host_indx == dev.CurrentIndex ? 21 : 11);//20);
+            var track_mode = (current_host_indx == dev.CurrentIndex ? 21 : 20);//11);
+            if(!dev.IsHost)
+            {
+                var host = GetHost();
+                if(host != null && host.MapStatus == MapStatus.MAP_REBUILT)
+                {
+                    track_mode = 11;
+                }
+            }
             SendAckTo(dev.CurrentAddress, ConstantsChorusdAck.ACK_ARPERSIST_VBP);
             SendAckTo(dev.CurrentAddress, ConstantsChorusdAck.ACK_ARPENROLL_UID);
             SendAckTo(dev.CurrentAddress, $"{ConstantsChorusdAck.ACK_FILE_WRITE}{mode}");
             SendAckTo(dev.CurrentAddress, $"{ConstantsChorusdAck.ACK_TRACKING_MODE}{track_mode}");
+            dev.SetTrackerMode(track_mode);
+            if(!delayedTickActions.ContainsKey(ConstantsChorusdAck.ACK_TRACKING_MODE))
+                delayedTickActions[ConstantsChorusdAck.ACK_TRACKING_MODE] = (ack) => SendAckTo(dev.CurrentAddress, ack);
             if (!dev.IsHost)
             {
                 SendAckTo(dev.CurrentAddress, $"{ConstantsChorusdAck.ACK_LAMBDA_COMMAND}{ConstantsChorusdStatus.RESET_MAP}");
@@ -730,6 +725,7 @@ namespace VIVE_Trackers
             if (mode == 1 && !dev.IsConnectedToHost) // is client
             {
                 //SendAckTo(device_addr, ConstantsChorusdAck.ACK_WIFI_CONNECT + 1);
+                tick_periodic = 0;
                 delayedTickActions[ConstantsChorusdAck.ACK_WIFI_SETUP] = (ack) => SendAckTo(device_addr, ack);
             }
             else if (delayedTickActions.ContainsKey(ConstantsChorusdAck.ACK_WIFI_SETUP))
@@ -906,6 +902,27 @@ namespace VIVE_Trackers
         void IVIVEDongle.ReMap(int currentDeviceIndex)
         {
             ReMap(currentDeviceIndex);
+        }
+
+        void IVIVEDongle.SetIndividualMapScan(int indx)
+        {
+            var dev = Get(indx);
+
+            if (!dev.IsHost)
+            {
+                var track_mode = 20;
+                SendAckTo(dev.CurrentAddress, $"{ConstantsChorusdAck.ACK_TRACKING_MODE}{track_mode}"); 
+            }
+        }
+        void IVIVEDongle.SetConnectionToHostMap(int indx)
+        {
+            var dev = Get(indx);
+
+            if (!dev.IsHost)
+            {
+                var track_mode = 11;
+                SendAckTo(dev.CurrentAddress, $"{ConstantsChorusdAck.ACK_TRACKING_MODE}{track_mode}");
+            }
         }
         protected virtual void ReMap(int currentDeviceIndex)
         {

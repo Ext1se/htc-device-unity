@@ -16,13 +16,14 @@ public class TrackerDeviceInfoView : MonoBehaviour
     [SerializeField] Image buttonHightLightImg;
     [SerializeField] TextMeshProUGUI trackerStatusText;
     [SerializeField] TextMeshProUGUI dongleStatusText;
+    [SerializeField] TextMeshProUGUI ATM_ModeText;
     [SerializeField] TMP_Dropdown roleIDDD;
     [SerializeField] Button centralBtn;
     [SerializeField] Button unpairBtn;
     [SerializeField] Button powerBtn;
     [SerializeField] Button remapBtn;
 
-    static System.Enum dropDownRoles;
+    static System.Type dropDownRoles;
 
     OculusActivityPlugin plugin;
     TrackerDeviceInfo deviceInfo;
@@ -38,7 +39,7 @@ public class TrackerDeviceInfoView : MonoBehaviour
             dongleAPI.OnConnected += DongleAPI_OnConnected;
             dongleAPI.OnDisconnected += DongleAPI_OnDisconnected;
             dongleAPI.OnTrackerStatus += DongleAPI_OnTrackerStatus;
-            dongleAPI.OnDongleStatus += Trackers_OnDongleStatus;
+            dongleAPI.OnDongleStatus += DongleAPI_OnDongleStatus;
             dongleAPI.OnTrack += DongleAPI_OnTrack;
         }
     }
@@ -58,7 +59,7 @@ public class TrackerDeviceInfoView : MonoBehaviour
     [SerializeField] TMP_InputField ack_command;
     [SerializeField] Button sendAckBtn;
 
-    public static void AddRoleEnum(System.Enum roles)
+    public static void AddRoleEnum(System.Type roles)
     {
         dropDownRoles = roles;
     }
@@ -158,7 +159,7 @@ public class TrackerDeviceInfoView : MonoBehaviour
             distance = Vector3.Distance(startPoint, tracker.position);
     }
     
-    private void Trackers_OnDongleStatus(PairState[] states)
+    private void DongleAPI_OnDongleStatus(PairState[] states)
     {
         UnityDispatcher.Invoke(() =>
         {
@@ -219,6 +220,7 @@ public class TrackerDeviceInfoView : MonoBehaviour
                 isConnected = true;
                 isHost = device.IsHost;
                 trackerStatusText.text = deviceInfo.status.ToString();
+                ATM_ModeText.text = deviceInfo.Mode.ToString();
             });
         }
     }

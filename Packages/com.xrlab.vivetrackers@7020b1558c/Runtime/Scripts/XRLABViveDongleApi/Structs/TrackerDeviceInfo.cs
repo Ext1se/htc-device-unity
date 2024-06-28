@@ -26,6 +26,7 @@ namespace VIVE_Trackers
         private byte[] currentAddress = null;
         private string currendAddressStr = null;
         private int currentIndex = -1;
+        private TrackerMode trackerMode = TrackerMode.Invalid;
         public string calib_1 = "";
         public string calib_2 = "";
 
@@ -70,6 +71,8 @@ namespace VIVE_Trackers
         public byte Battery { get; internal set; }
         public Status status { get; internal set; }
         public MapStatus MapStatus { get; set; }
+
+        public TrackerMode Mode { get => trackerMode; }
 
         public TrackerDeviceInfo(IVIVEDongle hid)
         {
@@ -380,6 +383,11 @@ namespace VIVE_Trackers
             }
             else
                 stuck_on_not_checked = 0;
+        }
+
+        internal void SetTrackerMode(int mode)
+        {
+            trackerMode = (TrackerMode)mode;
         }
     }
 }
