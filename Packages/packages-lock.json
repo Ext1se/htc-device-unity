@@ -198,7 +198,7 @@
       "url": "https://packages.unity.com"
     },
     "com.xrlab.vivetrackers": {
-      "version": "file:com.xrlab.vivetrackers@7020b1558c",
+      "version": "file:com.xrlab.vivetrackers",
       "depth": 0,
       "source": "embedded",
       "dependencies": {}
