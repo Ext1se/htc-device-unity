@@ -1,6 +1,6 @@
 {
   "dependencies": {
-	"com.xrlab.vivetrackers":"https://gitlab.enigmagroup.tech/s.blinov/xrlabvivedongleapi.git",
+    "com.meta.xr.sdk.all": "66.0.0",
     "com.unity.collab-proxy": "2.3.1",
     "com.unity.feature.development": "1.0.1",
     "com.unity.mobile.android-logcat": "1.4.2",
@@ -11,6 +11,8 @@
     "com.unity.ugui": "1.0.0",
     "com.unity.visualscripting": "1.9.4",
     "com.unity.xr.management": "4.4.1",
+    "com.unity.xr.oculus": "3.4.0",
+    "com.xrlab.vivetrackers": "https://gitlab.enigmagroup.tech/s.blinov/xrlabvivedongleapi.git",
     "com.unity.modules.ai": "1.0.0",
     "com.unity.modules.androidjni": "1.0.0",
     "com.unity.modules.animation": "1.0.0",
@@ -43,24 +45,5 @@
     "com.unity.modules.wind": "1.0.0",
     "com.unity.modules.xr": "1.0.0"
   },
-  "scopedRegistries": [
-    {
-      "name": "Meta",
-      "url": "https://npm.developer.oculus.com",
-      "scopes": [
-        "com.meta.xr.sdk.audio",
-        "com.meta.xr.sdk.core",
-        "com.meta.xr.sdk.interaction",
-        "com.meta.xr.sdk.interaction.ovr",
-        "com.meta.xr.sdk.platform",
-        "com.meta.xr.sdk.voice",
-        "com.meta.xr.sdk.voice.composer",
-        "com.meta.xr.sdk.voice.dictation",
-        "com.meta.xr.sdk.voice.telemetry",
-        "com.meta.xr.simulator",
-        "com.meta.xr.sdk.sharedassets",
-        "com.meta.xr.sdk.interaction.ovr.samples"
-      ]
-    }
-  ]
+  "scopedRegistries": []
 }
