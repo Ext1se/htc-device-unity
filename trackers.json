@@ -8,8 +8,8 @@
     "IsHost": true,
     "HasHostMap": false,
     "IsConnectedToHost": false,
-    "CurrentIndex": 3,
-    "RoleID": 0
+    "CurrentIndex": 2,
+    "RoleID": 5
   },
   {
     "SN": "FA3AR3B00453",
@@ -19,8 +19,32 @@
     "Firmware": "1.0.999.152",
     "IsHost": false,
     "HasHostMap": false,
-    "IsConnectedToHost": false,
+    "IsConnectedToHost": true,
+    "CurrentIndex": 1,
+    "RoleID": 42
+  },
+  {
+    "SN": "FA3AK3B00051",
+    "SHIPSN": "43A3339L02876",
+    "SKU": "00000000",
+    "PCB": "000000FF",
+    "Firmware": "1.0.999.152",
+    "IsHost": false,
+    "HasHostMap": false,
+    "IsConnectedToHost": true,
     "CurrentIndex": 4,
-    "RoleID": 0
+    "RoleID": 1
+  },
+  {
+    "SN": "FA3AR3B00445",
+    "SHIPSN": "43A3339V02303",
+    "SKU": "00000000",
+    "PCB": "000000FF",
+    "Firmware": "1.0.999.152",
+    "IsHost": false,
+    "HasHostMap": false,
+    "IsConnectedToHost": false,
+    "CurrentIndex": 0,
+    "RoleID": 3
   }
 ]
