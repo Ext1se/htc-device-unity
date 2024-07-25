@@ -30,6 +30,7 @@ public class TrackerCalibration : MonoBehaviour
     [Header("Example")]
     [SerializeField] bool example_Calibrate;
     [SerializeField] bool example_started;
+    [SerializeField] Material trackerLineMat;
     [SerializeField] LineRenderer example_trackerParent;
     [SerializeField] LineRenderer example_controller;
     [SerializeField] Vector3[] pts;
@@ -76,8 +77,9 @@ public class TrackerCalibration : MonoBehaviour
         go.transform.position = new Vector3(Random.Range(-1, 1), Random.Range(-1, 1), Random.Range(-1, 1));
         go.transform.localRotation = Quaternion.Euler(Random.Range(0, 360), Random.Range(0, 360), Random.Range(0, 360));
         var lr = go.AddComponent<LineRenderer>();
-        lr.widthCurve = new AnimationCurve(new Keyframe(0, 0.01f));
+        lr.widthCurve = new AnimationCurve(new Keyframe(0, 0.008f));
         lr.useWorldSpace = false;
+        lr.material = trackerLineMat;
         return lr;
     }
 
@@ -96,49 +98,48 @@ public class TrackerCalibration : MonoBehaviour
     {
         if (example_trackerParent != null) Destroy(example_trackerParent.gameObject);
         example_trackerParent = CreateParentObject();
-        if(pts.Length == 0)
+        //if(pts.Length == 0)
             pts = GenerateLinePoints();
         example_trackerParent.positionCount = pts.Length;
         example_trackerParent.SetPositions(pts);
         example_controller.positionCount = pts.Length;
         example_controller.SetPositions(pts);
-        yield return new WaitForSeconds(0.2f);
-        Calculate(pts, pts, example_trackerParent.transform, out _);
+        yield return new WaitForSeconds(0.5f);
+        Calculate(pts, pts, example_trackerParent.transform, out _, out var offset);
+        example_trackerParent.transform.position = offset;
     }
 
-    static Vector3 Divide(Vector3 v1, Vector3 v2)
+    static void Calculate(Vector3[] trackerLocalPoints, Vector3[] controllerWorldPoints, Transform trackerParent, out Vector3 scale, out Vector3 offset, Transform controller = null, Transform tracker = null)
     {
-        return  new Vector3(v1.x / v2.x, v1.y / v2.y, v1.z / v2.z);
-    }
-    static Vector3 Mul(Vector3 v1, Vector3 v2)
-    {
-        return new Vector3(v1.x * v2.x, v1.y * v2.y, v1.z * v2.z);
-    }
-    static Vector3 GetWorldDirection(Vector3[] pts, Transform tr, int indxTo, int indxFrom, bool normalize = true)
-    {
-        var vec = (tr.TransformPoint(pts[indxTo]) - tr.TransformPoint(pts[indxFrom]));
-        if(normalize)
-            vec.Normalize();
-        return vec;
-    }
-    static float GetAngleOnAxis(Vector3 from, Vector3 to, Vector3 axis, bool clockwise = false)
-    {
-        Vector3 right;
-        if (clockwise)
+        #region Internal functions
+        Vector3 Divide(Vector3 v1, Vector3 v2)
         {
-            right = Vector3.Cross(to, axis);
-            to = Vector3.Cross(axis, right);
+            return new Vector3(v1.x / v2.x, v1.y / v2.y, v1.z / v2.z);
         }
-        else
+        Vector3 GetWorldDirection(Vector3[] pts, Transform tr, int indxTo, int indxFrom, bool normalize = true)
         {
-            right = Vector3.Cross(axis, to);
-            to = Vector3.Cross(right, axis);
+            var vec = (tr.TransformPoint(pts[indxTo]) - tr.TransformPoint(pts[indxFrom]));
+            if (normalize)
+                vec.Normalize();
+            return vec;
         }
-        return Mathf.Atan2(Vector3.Dot(from, right), Vector3.Dot(from, to)) * 57.2957795130823f;///Mathf.Rad2Deg;
-    }
+        float GetAngleOnAxis(Vector3 from, Vector3 to, Vector3 axis, bool clockwise = false)
+        {
+            Vector3 right;
+            if (clockwise)
+            {
+                right = Vector3.Cross(to, axis);
+                to = Vector3.Cross(axis, right);
+            }
+            else
+            {
+                right = Vector3.Cross(axis, to);
+                to = Vector3.Cross(right, axis);
+            }
+            return Mathf.Atan2(Vector3.Dot(from, right), Vector3.Dot(from, to)) * 57.2957795130823f;///Mathf.Rad2Deg;
+        }
+        #endregion
 
-    static void Calculate(Vector3[] trackerLocalPoints, Vector3[] controllerWorldPoints, Transform trackerParent, out Vector3 scale)
-    {
         Vector3 dir_tracker10 = GetWorldDirection(trackerLocalPoints, trackerParent, 1, 0, false);
         Vector3 dir_controller10 = (controllerWorldPoints[1] - controllerWorldPoints[0]);
         Vector3 dir_controller21 = (controllerWorldPoints[2] - controllerWorldPoints[1]);
@@ -160,16 +161,21 @@ public class TrackerCalibration : MonoBehaviour
         trackerParent.rotation = q1 * quat;
 
         dir_tracker21 = GetWorldDirection(trackerLocalPoints, trackerParent, 2, 1);
-        var ang = GetAngleOnAxis(dir_tracker21, dir_controller21, dir_controller10); // вот эта функция вычисляет правильный угол так как мне надо вместо Vector3.SignedAngle
+        var ang = GetAngleOnAxis(dir_tracker21, dir_controller21, dir_controller10); // вот эта функция вычисляет правильный угол вместо Vector3.SignedAngle
         var q2 = Quaternion.Inverse(Quaternion.AngleAxis(ang, dir_controller10));
         //Debug.Log("ang2: " + ang);
         trackerParent.rotation *= q2;
 
         dir_tracker21 = GetWorldDirection(trackerLocalPoints, trackerParent, 2, 1);
         ang = Vector3.SignedAngle(dir_tracker21, dir_controller21, dir_controller10);
-
-        var diff = controllerWorldPoints[0] - trackerParent.TransformPoint(trackerLocalPoints[0]);
-        trackerParent.position += diff;
+        if (controller != null && tracker != null)
+            offset = controller.position - tracker.position;
+        else
+        {
+            offset = controllerWorldPoints[0] - trackerParent.TransformPoint(trackerLocalPoints[0]);
+            trackerParent.position += offset;
+        }
+        //trackerParent.position += diff;
         //Debug.Log("ang3: " + ang);
     }
 
@@ -185,6 +191,21 @@ public class TrackerCalibration : MonoBehaviour
 
         lastPos = tracker.Device.trackData.position;
         //lastPos = Mul(lastPos, scale);
+        if (example_trackerParent == null)
+        {
+            example_trackerParent = tracker.transform.parent.gameObject.AddComponent<LineRenderer>();
+            example_trackerParent.widthCurve = new AnimationCurve(new Keyframe(0, 0.01f));
+            example_trackerParent.useWorldSpace = false;
+            example_trackerParent.positionCount = 3000;
+            example_trackerParent.material = trackerLineMat;
+            example_controller = controller.GetComponent<LineRenderer>();
+            example_controller.positionCount = 3000;
+        }
+        if (calibratedPositions.Count * 3 < example_trackerParent.positionCount)
+        {
+            example_trackerParent.SetPosition(calibratedPositions.Count * 3 + trackerPoints.Count, lastPos);
+            example_controller.SetPosition(calibratedPositions.Count * 3 + controllerPoints.Count, controller.position);
+        }
 
         if (trackerPoints.Count < 3)
         {
@@ -205,8 +226,8 @@ public class TrackerCalibration : MonoBehaviour
         if (controllerPoints.Count == 3 && trackerPoints.Count == 3)
         {
             var trackerParent = tracker.transform.parent;
-            Calculate(trackerPoints.ToArray(), controllerPoints.ToArray(), trackerParent, out scale);
-            calibratedPositions.Add(trackerParent.position);
+            Calculate(trackerPoints.ToArray(), controllerPoints.ToArray(), trackerParent, out scale, out var offset, controller, tracker.transform);
+            calibratedPositions.Add(offset);
             calibratedRotations.Add(trackerParent.rotation);
             calibratedScales.Add(scale);
 
@@ -230,7 +251,7 @@ public class TrackerCalibration : MonoBehaviour
                 w += calibratedRotations[i].w;
             }
 
-            trackerParent.position = pos;
+            trackerParent.position = offset;
             trackerParent.rotation = new Quaternion(x / calibratedRotations.Count, y / calibratedRotations.Count, z / calibratedRotations.Count, w / calibratedRotations.Count);
             //Debug.Log("pos: " + tracker.transform.parent.position);
             //Debug.Log("rot: " + tracker.transform.parent.eulerAngles);
@@ -238,6 +259,34 @@ public class TrackerCalibration : MonoBehaviour
             rotOffset = trackerParent.rotation;
             trackerPoints.Clear();
             controllerPoints.Clear();
+            if(calibratedPositions.Count > 10)
+            {
+                calibratedPositions.Clear();
+                calibratedRotations.Clear();
+            }
+        }
+    }
+
+    void CheckAndSet()
+    {
+        Vector3 pos = calibratedPositions[0];
+        for (int i = 1; i < calibratedPositions.Count; i++)
+            pos += calibratedPositions[i];
+        pos /= calibratedPositions.Count;
+
+        //float x = calibratedRotations[0].x, y = calibratedRotations[0].y, z = calibratedRotations[0].z, w = calibratedRotations[0].w;
+        //for (int i = 1; i < calibratedRotations.Count; i++)
+        //{
+        //    x += calibratedRotations[i].x;
+        //    y += calibratedRotations[i].y;
+        //    z += calibratedRotations[i].z;
+        //    w += calibratedRotations[i].w;
+        //}
+        //var midQuat = new Quaternion(x / calibratedRotations.Count, y / calibratedRotations.Count, z / calibratedRotations.Count, w / calibratedRotations.Count);
+        var midQuat = calibratedRotations[0];
+        for (int i = 1; i < calibratedRotations.Count; i++)
+        {
+            midQuat = Quaternion.Lerp(midQuat, calibratedRotations[i], 0.5f);
         }
     }
 }
