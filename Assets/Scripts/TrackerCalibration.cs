@@ -140,6 +140,7 @@ public class TrackerCalibration : MonoBehaviour
         }
         #endregion
 
+
         Vector3 dir_tracker10 = GetWorldDirection(trackerLocalPoints, trackerParent, 1, 0, false);
         Vector3 dir_controller10 = (controllerWorldPoints[1] - controllerWorldPoints[0]);
         Vector3 dir_controller21 = (controllerWorldPoints[2] - controllerWorldPoints[1]);
@@ -168,6 +169,7 @@ public class TrackerCalibration : MonoBehaviour
 
         dir_tracker21 = GetWorldDirection(trackerLocalPoints, trackerParent, 2, 1);
         ang = Vector3.SignedAngle(dir_tracker21, dir_controller21, dir_controller10);
+        Debug.Log("ang3: " + ang);
         if (controller != null && tracker != null)
             offset = controller.position - tracker.position;
         else
@@ -176,7 +178,6 @@ public class TrackerCalibration : MonoBehaviour
             trackerParent.position += offset;
         }
         //trackerParent.position += diff;
-        //Debug.Log("ang3: " + ang);
     }
 
     private void Update()
@@ -196,10 +197,10 @@ public class TrackerCalibration : MonoBehaviour
             example_trackerParent = tracker.transform.parent.gameObject.AddComponent<LineRenderer>();
             example_trackerParent.widthCurve = new AnimationCurve(new Keyframe(0, 0.01f));
             example_trackerParent.useWorldSpace = false;
-            example_trackerParent.positionCount = 3000;
+            example_trackerParent.positionCount = 100;
             example_trackerParent.material = trackerLineMat;
             example_controller = controller.GetComponent<LineRenderer>();
-            example_controller.positionCount = 3000;
+            example_controller.positionCount = 100;
         }
         if (calibratedPositions.Count * 3 < example_trackerParent.positionCount)
         {
@@ -251,15 +252,15 @@ public class TrackerCalibration : MonoBehaviour
                 w += calibratedRotations[i].w;
             }
 
-            trackerParent.position = offset;
-            trackerParent.rotation = new Quaternion(x / calibratedRotations.Count, y / calibratedRotations.Count, z / calibratedRotations.Count, w / calibratedRotations.Count);
+            trackerParent.position += offset;
+            //trackerParent.rotation = new Quaternion(x / calibratedRotations.Count, y / calibratedRotations.Count, z / calibratedRotations.Count, w / calibratedRotations.Count);
             //Debug.Log("pos: " + tracker.transform.parent.position);
             //Debug.Log("rot: " + tracker.transform.parent.eulerAngles);
-            posOffset = pos;
+            posOffset = trackerParent.position;
             rotOffset = trackerParent.rotation;
             trackerPoints.Clear();
             controllerPoints.Clear();
-            if(calibratedPositions.Count > 10)
+            if(calibratedPositions.Count > 100)
             {
                 calibratedPositions.Clear();
                 calibratedRotations.Clear();
